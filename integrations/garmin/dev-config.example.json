@@ -1,0 +1,13 @@
+{
+  "_comment": "Local development configuration. Copy to a private location (e.g. ~/.config/osmand-junction/dev-config.json) and pass with --config. Do not commit real paths or device serials.",
+  "android_sdk": "/path/to/android-sdk",
+  "ndk": "/path/to/android-ndk",
+  "garmin_sdk": "/path/to/connectiq-sdk",
+  "garmin_device": "fr970",
+  "garmin_device_dir": "/path/to/.Garmin/ConnectIQ/Devices/fr970",
+  "garmin_key": "/private/path/to/ciq_dev_key.der",
+  "garmin_library_path": "",
+  "osmand_api_aar": "",
+  "adb_serial": "",
+  "java_home": ""
+}

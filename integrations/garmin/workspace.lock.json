@@ -1,0 +1,44 @@
+{
+  "formatVersion": 1,
+  "upstreamBase": "f22eeb0c1322a9f5784eed6e4d0addb43a0c2e32",
+  "siblings": [
+    {
+      "directory": "resources",
+      "url": "https://github.com/osmandapp/OsmAnd-resources.git",
+      "commit": "d0ed5113a2a7b9eaebffa4d4f293e42f9819fba3"
+    },
+    {
+      "directory": "core-legacy",
+      "url": "https://github.com/osmandapp/OsmAnd-core-legacy.git",
+      "commit": "31f6b7fd5e2779528aca4391baaa78f932744ee9"
+    },
+    {
+      "directory": "build",
+      "url": "https://github.com/osmandapp/OsmAnd-build.git",
+      "commit": "54356f2a6d1d07fe67510a25ec7912c0c63b277d"
+    }
+  ],
+  "toolchain": {
+    "javaMinimum": 17,
+    "javaTested": "21.0.12.1",
+    "androidPlatform": 36,
+    "androidBuildTools": "36.0.0",
+    "ndk": "27.2.12479018",
+    "gradle": "8.11.1",
+    "garminSdkTested": "9.3.0",
+    "garminAndroidSdk": "2.4.0"
+  },
+  "cachedOpenGlAars": [
+    {
+      "coordinate": "OsmAndCore_android:master-snapshot",
+      "bytes": 42524942,
+      "sha256": "50452b417281fa7adce8398b53586afca02baf360ed83dfd38a2d0934857b70b"
+    },
+    {
+      "coordinate": "OsmAndCore_androidNativeRelease:master-snapshot",
+      "bytes": 52663646,
+      "sha256": "d527e6755d684848006519f0e5c5bb72114a52c264daa4009273c9e3d0b8821a"
+    }
+  ],
+  "binaryNote": "master-snapshot is mutable. These hashes detect drift; archive matching binaries separately or review a fresh build if upstream replaces them."
+}

@@ -1,0 +1,11 @@
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <!-- Stable app identity for the junction companion (fixed UUID, do not regenerate). -->
+    <iq:application entry="JunctionApp" id="9d7c2b1a-4f6e-4b3a-9c1d-2e8f5a6b7c8d" launcherIcon="@Drawables.LauncherIcon" minSdkVersion="6.0.0" name="@Strings.AppName" type="watch-app">
+        <iq:products>
+            <iq:product id="fr970"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Communications"/>
+        </iq:permissions>
+    </iq:application>
+</iq:manifest>

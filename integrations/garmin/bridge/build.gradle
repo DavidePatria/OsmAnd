@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application' version '8.10.1'
+    id 'org.jetbrains.kotlin.android' version '2.1.20'
+}
+
+android {
+    namespace 'net.osmand.junction.bridge'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'net.osmand.junction.bridge.debug'
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '0.1-t03'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+// Consume the actual locally built API; never copy AIDL declarations.
+def apiAar = file(findProperty('osmandApiAar') ?: '../../../OsmAnd-api/build/outputs/aar/OsmAnd-api-debug.aar')
+if (!apiAar.isFile()) {
+    throw new GradleException('Build :OsmAnd-api:assembleDebug first, or configure -PosmandApiAar=/path/to/actual.aar')
+}
+
+dependencies {
+    implementation files(apiAar)
+    implementation 'com.garmin.connectiq:ciq-companion-app-sdk:2.4.0'
+}
