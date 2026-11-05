@@ -147,4 +147,121 @@ This is encouraging evidence that useful data exists. **T06 as a whole is not cl
 
 `JUNCTION.md` is the entry point for another computer. The current OsmAnd Git root holds all customization, companion code, tooling and authoritative docs; required siblings are recreated from `workspace.lock.json` using `bootstrap.py`. The offline bootstrap check passes for all three pinned inputs. It never resets or overwrites existing checkouts; three regression tests cover this behavior. SDKs, signing keys, device identifiers and raw evidence remain local.
 
-Next work: inspect maneuvers 5/6 and 10 using the real capture/map, decide whether the visible competing branches are sufficient and honest, then design bounded geometry from those actual indexed inputs. Keep watch transport deferred until the data-usability gate is satisfied. Local commits are authorized for this checkpoint; the user will push manually.
+That committed checkpoint is superseded by the simulator/layout-review work below. The user will push manually; future commits still require authorization.
+
+## T04/T05/T06 — fixed junction scene, actual simulator and user review
+
+User clarification: stable next-junction layout, all recognizable road arms gray,
+selected route yellow, distance refreshed each second. No moving map/rider marker.
+OsmAnd alone chooses and advances the junction. Small optional anticipation is
+limited to one second of known route-matched sample delay. Real position cadence
+must be measured separately from display refresh. The user selected a meaningful
+route on the phone; capture did not replace endpoints/profile or reinstall.
+
+**Real data:** the new read-only motorcycle capture has 163 indexed points,
+32 selected segments, 12 maneuvers and API distance 2,986 m. Its local SHA-256 is
+`fe56fe0c1f81c04b80c00d59cf65ee47a3fe5c65dc7df0070c7c43cad8fc90dd`.
+The same Lazio OBF was copied read-only from the isolated test app; SHA-256
+`db01a72e15bdf1cb4e74660e4f88e62f27476216ab71287294ea29d2d91518a0`.
+Coordinates, road names and raw data remain under ignored
+`build/garmin-review/user-route/`, not tracked fixtures.
+
+Filtered attached turns are insufficient: source inspection confirms one-way
+filtering in RouteResultPreparation and profile acceptance in RoutingContext.
+The new optional `road-context.gradle` / `RoadContextProbe.java` uses OsmAnd's
+existing BinaryMapIndexReader on a dedicated desktop read-only stream, with a
+400 m query box, ≤512 roads / 50,000 points, explicit truncation and no router
+profile/one-way filter. This adds no Android production code or second database.
+The first isolated Gradle task failed from a shadowed Groovy `source` name;
+corrected task compiled and ran successfully (12 s, then 14 s batch). Logs:
+`user-route/{road-context-build,contexts-build}.log`.
+
+Diagnostic Python conversion clips to 75 m with an 80 m fixed scale, preserves
+shared map vertices and original decision indexes, and does not assert topology
+for context lines. The three review scenes (original maneuver indexes 3, 6, 7)
+contain 29/30/29 paths and 113/90/88 points. Map-context limits are explicitly
+32 paths / 48 points per path / 512 total; legacy branch scenes retain 8/24/96.
+These bounds are not transport/heap certification. Any overflow or unsupported
+grade-separated context yields an explicit limited route-only view. Maneuver 2
+exposed the grade-separation gap and was excluded from the full-context gallery;
+it has not been fixed or claimed complete.
+
+**Actual watch:** shared Monkey C decoder/state/renderer, recorded input adapter,
+pause/frame stepping/speed, fixed diagram and one-second countdown execute in the
+real fr970 simulator. Idle/rerouting/stale states clear geometry. Optional distance
+estimation is capped, stops at zero and never advances a decision. The live echo
+build remains separate. Generated fixtures live under ignored build output.
+
+`T05/user-full-layout-final/` passed using the actual captured scene. Its trace:
+
+```text
+JUNCTION_START build=T05-2
+JUNCTION_DRAW seq=1 state=active mode=map_context paths=29 anchors=2 distance=118 elapsedMs=4
+JUNCTION_DRAW seq=2 state=active mode=map_context paths=29 anchors=2 distance=108 elapsedMs=1013
+JUNCTION_DRAW seq=3 state=active mode=map_context paths=29 anchors=2 distance=98 elapsedMs=2009
+JUNCTION_DRAW seq=4 state=active mode=map_context paths=29 anchors=2 distance=88 elapsedMs=3009
+```
+
+The route geometry is real; progress, speed, fix ages and lifecycle events in this
+replay are SYNTHETIC. This does not establish a continuous OsmAnd position feed,
+real GPS cadence, live navigation simulation or phone-to-watch delivery.
+`run.json` records PRG/capture/generated-source/frame hashes. Repeated deployments
+reused the simulator without phone installation, ADB forwarding or menu actions.
+
+**Checks:** 42 Python tests pass. Eleven real Monkey C tests pass under
+`T05/full-layout-tests/`, including rejection/freshness/generation, geometry ownership,
+bounded distance prediction, stop/zero and context capacity/connectivity rules.
+The initial test wrapper falsely failed because SDK 9.3.0 emits exit 1 even on
+success and uses a different result summary. Calibration under
+`T05/test-runner-calibration/{pass,fail}/` proved BOTH known pass and intentional
+failure return 1; their complete summaries differ. The corrected checker requires
+positive matching counts and an all-pass summary and preserves the raw code.
+It rejects missing/inconsistent/failing summaries and crash exit codes.
+
+The old temporary Linux WebKitGTK library directory had disappeared. Restoring
+hash-verified official Ubuntu packages into the persistent user cache recovered
+actual SDK startup; no system packages were changed. URLs/versions/hashes are in
+`integrations/garmin/linux-runtime.lock.json`; setup is documented in its README.
+
+**Visual review:** `preview.py` produced three SVG/PNG watch-layout examples and a
+coordinate-linked HTML gallery under `user-route/watch-review/`. The gallery was
+opened in the permitted browser at `http://127.0.0.1:8766/index.html`; its accessible
+state contains all three images and four expected coordinate links. PNG previews
+were inspected locally. They use actual scene geometry and watch transforms,
+colors and strokes, but approximate fonts: they are NOT simulator screenshots.
+The user will open OpenStreetMap links and assess the junctions. Do not record that
+review as passed before feedback. Actual simulator drawing callbacks remain
+distinct from pixel/physical-watch approval. The simulator is left on a held
+review scene (`T05/user-layout-held/`) when that final launch passes.
+
+**Next:** incorporate the user's geometry feedback, resolve grade-separated and
+roundabout layout coverage, then implement/measure a lightweight route-matched
+progress probe with OsmAnd desk simulation. Target 1 Hz fresh phone progress,
+measure real fix ages and transport delay, and only then reconnect live delivery.
+T04 full envelope, T07 production Java geometry/lifecycle, T08/T09 live exporter,
+physical-watch/Bluetooth checks and end-to-end field validation remain open.
+
+### User visual feedback — omit non-motor roads
+
+The user inspected the previews/map links and identified cycleways/footpaths
+appearing misleadingly as solid roads. They explicitly authorized filtering those
+out and deferred traffic-light/stop-sign symbols. The diagnostic display filter
+now uses highway class plus motorcycle/motor_vehicle/vehicle/access precedence,
+preserves motor-permission overrides, tracks/service roads and the yellow route,
+and records omission reasons. Dashed map styling is not itself a filter. It does
+not decide country-specific or conditional legal access.
+
+The same desktop OBF queries were rebuilt with access fields and an explicit
+`accessTagsVersion:1` marker; older extracts are rejected until refreshed. Build
+passed in 12 s (`user-route/contexts-filter-build.log`). The three review scenes
+changed from 29/30/29 to **24/14/16 paths**, with 94/47/52 points. Their endpoints,
+decision indexes and yellow selected geometry are preserved. **45 Python tests
+pass**, including class defaults, access precedence/overrides, unpaved-track and
+restricted-road retention, and unchanged selected route. The unchanged watch
+decoder/state still has eleven real passing tests; the filtered replay is rebuilt
+and checked separately under `T05/user-layout-motorcycle-filter/`.
+
+The local gallery at port 8766 is regenerated with the same coordinate links and
+filtered layouts. Traffic lights/stop signs have NOT been added. Traffic lights
+are a plausible junction landmark if associated with the correct approach;
+stop-sign direction needs particular care. They remain a later design question.

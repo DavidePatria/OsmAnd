@@ -46,7 +46,7 @@ openssl pkcs8 -topk8 -inform PEM -outform DER \
 
 Keep that key stable for subsequent updates. The previous handoff's 2048-bit key compiled but produced simulator `Signature check failed` errors; it was preserved and a valid 4096-bit development key selected privately. Garmin documents the required key size in [Getting Started](https://developer.garmin.com/connect-iq/connect-iq-basics/getting-started/).
 
-Ubuntu 24.04 lacks the older WebKitGTK ABI linked by this simulator. Compatibility libraries already extracted under `/tmp/opencode/wkgtk/usr/lib/x86_64-linux-gnu` allowed it to run. Set private `garmin_library_path` to that directory for automatic launch. This temporary directory is a host workaround, **not** a portable or permanent dependency installation. If it disappears, restore compatible libraries or provide a supported runtime; do not claim the binary's presence proves GUI readiness.
+Ubuntu 24.04 lacks the older WebKitGTK ABI linked by this simulator. The previous `/tmp/opencode/wkgtk` workaround disappeared and prevented launch. It was replaced with a persistent, user-local extraction at `~/.cache/osmand-junction/garmin-linux-runtime/root/usr/lib/x86_64-linux-gnu`; private `garmin_library_path` now points there. No system packages were changed. `linux-runtime.lock.json` records official Ubuntu package URLs, versions and SHA-256 for WebKitGTK 4.0, JavaScriptCore 4.0 and ICU 70. To restore on a compatible Linux host: download those three packages, require matching hashes, extract each with `dpkg-deb -x package.deb /chosen/cache/root`, configure the resulting library directory and check `ldd` before launch. Their other runtime dependencies still come from the host. This is a tested host compatibility workaround, not a general SDK installer.
 
 ## Implemented commands
 
@@ -67,7 +67,76 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s integrations/garmin/te
 
 The first simulator start may require Linux desktop/network access unavailable inside a restricted runner. On this host, sandboxed ADB also cannot open its local server socket. Run the same commands in the authorized host environment; do not substitute a mocked success.
 
-`build` targets other than `watch|bridge`, `check`, `run --mode replay|desk` and `iterate` remain explicitly unimplemented. Do not describe them as working automation.
+`check --suite protocol|watch` and `run --mode replay` are implemented (below). Other build targets, check suites, `run --mode desk` and `iterate` remain explicitly unimplemented.
+
+## Recorded watch replay and coordinate-linked review
+
+The shared Monkey C scene decoder/state/renderer runs on the actual fr970
+simulator. Replay input substitutes recorded geometry and explicitly simulated
+progress/state; it is not a live phone position feed. Live echo builds keep their
+separate input adapter. See [scene draft](contract.md).
+
+```sh
+python3 integrations/garmin/dev.py check --suite protocol --out build/garmin-review/scene-tests
+python3 integrations/garmin/dev.py check --suite watch --out build/garmin-review/watch-tests
+python3 integrations/garmin/dev.py run --mode replay --scenario double-turn --out build/garmin-review/replay
+# User-selected route, captured without install/baseline/profile changes:
+python3 integrations/garmin/route_probe.py --out build/garmin-review/user-route
+```
+
+Next/previous controls step frames and pause; Start/Select toggles pause.
+`--speed 0.25..8` changes test speed; `--hold` freezes the initial scene for review.
+Distance normally changes once per second; the diagram has no moving rider marker.
+The 26-second loop includes deliberately stale/reroute/idle states. These messages
+are expected test cases. Replay requires an actual drawing callback, keeps the
+successful deployment open, and records artifact/generated-source/frame hashes.
+
+For complete local road context, use OsmAnd's own reader with the same downloaded
+OBF. This optional desktop-only Gradle init task adds nothing to the Android app:
+
+```sh
+# Copy the test app's existing OBF to ignored build/garmin-review/map-data once.
+# Set Android SDK/NDK environment as for the normal build. These maneuver indexes
+# are examples from the current user's route; inspect another route first.
+./gradlew '-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' --max-workers=2 \
+  -I integrations/garmin/road-context.gradle :OsmAnd-java:junctionRoadContext \
+  -Pjunction.map=build/garmin-review/map-data/Italy_lazio_europe.road.obf \
+  -Pjunction.capture=build/garmin-review/user-route/route.json \
+  -Pjunction.maneuver=3,6,7 -Pjunction.out=build/garmin-review/user-route/contexts
+python3 integrations/garmin/dev.py run --mode replay \
+  --capture build/garmin-review/user-route/route.json --maneuver 3 \
+  --context build/garmin-review/user-route/contexts/context-3.json \
+  --out build/garmin-review/user-layout --hold
+python3 integrations/garmin/preview.py \
+  --capture build/garmin-review/user-route/route.json \
+  --contexts build/garmin-review/user-route/contexts --maneuvers 3 6 7 \
+  --out build/garmin-review/user-route/watch-review
+```
+
+`preview.py` exports self-contained local SVG/HTML plus scene/provenance JSON.
+Optional `--png` needs Pillow and the local DejaVu Sans font. These previews use
+the watch transform/colors/strokes with approximate fonts, NOT simulator pixels.
+Each diagram has OpenStreetMap links to the original decision coordinates.
+Personal coordinates/images stay under ignored build output. Share the local
+HTML with a loopback-only server when convenient; no map screenshots are needed.
+
+The query is bounded to a 400 m box, with road/point caps and explicit truncation;
+display context is clipped to 75 m at an 80 m scale. No profile or one-way filtering
+is applied. No topology is invented for nearby crossing lines. Grade-separated
+context currently falls back to route-only and does not satisfy the full-layout
+goal. Real map completeness, visual usability and production lifecycle are open.
+
+The user-approved DISPLAY filter removes non-motor highway classes and explicit
+non-motor access while preserving more specific motor-permission overrides,
+tracks/service roads and selected geometry. Refreshed extracts contain access
+tags and `accessTagsVersion:1`; older extracts must be regenerated. Omission
+reasons appear in generated scene provenance. Current filtered examples contain
+24/14/16 paths; 45 Python tests pass. Traffic-light/stop-sign symbols are deferred.
+
+Eleven actual watch tests pass. SDK 9.3.0's `monkeydo -t` returned exit 1 for BOTH
+a known pass and a known intentional failure. The checker therefore requires the
+complete consistent `PASSED (passed=N, failed=0, errors=0)` report and positive
+matching test count; raw exit code is retained. Missing output/crashes fail.
 
 ## Current priority: actual route-data review
 

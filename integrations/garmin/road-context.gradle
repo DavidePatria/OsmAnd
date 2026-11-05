@@ -1,0 +1,28 @@
+// Optional desktop diagnostic. Uses the existing OsmAnd reader and runtime;
+// nothing is added to the Android application or its routing decisions.
+gradle.projectsEvaluated {
+    def core = gradle.rootProject.project(':OsmAnd-java')
+    def diagnosticSource = new File(gradle.rootProject.projectDir, 'integrations/garmin/road-context')
+    def classes = new File(gradle.rootProject.buildDir, 'junction-road-context/classes')
+    core.tasks.register('compileJunctionRoadContext', JavaCompile) {
+        dependsOn core.tasks.named('classes')
+        source diagnosticSource
+        classpath = core.sourceSets.main.runtimeClasspath
+        destinationDirectory.set(classes)
+        sourceCompatibility = '17'
+        targetCompatibility = '17'
+    }
+    core.tasks.register('junctionRoadContext', JavaExec) {
+        dependsOn core.tasks.named('compileJunctionRoadContext')
+        classpath = core.files(classes) + core.sourceSets.main.runtimeClasspath
+        mainClass.set('junction.RoadContextProbe')
+        maxHeapSize = '1g'
+        doFirst {
+            args = ['junction.map', 'junction.capture', 'junction.maneuver', 'junction.out'].collect {
+                def value = core.findProperty(it)
+                if (value == null) throw new GradleException('Missing -P' + it + '=...')
+                it == 'junction.maneuver' ? value.toString() : gradle.rootProject.file(value.toString()).absolutePath
+            }
+        }
+    }
+}

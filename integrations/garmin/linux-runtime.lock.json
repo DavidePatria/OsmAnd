@@ -1,0 +1,20 @@
+[
+  {
+    "package": "libjavascriptcoregtk-4.0-18",
+    "version": "2.50.4-0ubuntu0.22.04.1",
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/w/webkit2gtk/libjavascriptcoregtk-4.0-18_2.50.4-0ubuntu0.22.04.1_amd64.deb",
+    "sha256": "68aafd3f6d0a560276875e6275713dc5f55e8cda570f9e33d38d94ba4906ce5e"
+  },
+  {
+    "package": "libwebkit2gtk-4.0-37",
+    "version": "2.50.4-0ubuntu0.22.04.1",
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/w/webkit2gtk/libwebkit2gtk-4.0-37_2.50.4-0ubuntu0.22.04.1_amd64.deb",
+    "sha256": "121a795af0b4851eaa13b4e0cd55ba6261d7cf1578801bf39ce7c295af7d1174"
+  },
+  {
+    "package": "libicu70",
+    "version": "70.1-2",
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/i/icu/libicu70_70.1-2_amd64.deb",
+    "sha256": "58a154f6307289813da2276f900498ef536ae7c0522d2cf31a3c3c5cf62dfd9a"
+  }
+]

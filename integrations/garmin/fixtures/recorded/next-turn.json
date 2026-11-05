@@ -1,0 +1,145 @@
+{
+  "provenance": {
+    "kind": "actual_osmand_capture",
+    "captureSha256": "0a58cf1db4cbec158e5e24c09563c357d1e559740f67aa489133489866c86c51",
+    "applicationMode": "motorcycle",
+    "maneuverIndex": 6,
+    "routePointOffset": 82,
+    "conversion": "diagnostic projection/simplification; production Java geometry pending"
+  },
+  "scene": {
+    "version": 1,
+    "session": "replay-0a58cf1db4cbec15",
+    "generation": 1,
+    "seq": 1,
+    "state": "active",
+    "geometryMode": "routing_branches",
+    "reason": "routing data may omit roads",
+    "distanceM": 120,
+    "roadName": "Viale Mencacci",
+    "maneuver": "TR",
+    "radiusDm": 2000,
+    "sourceAgeMs": 0,
+    "fixAgeMs": 0,
+    "anchors": [
+      {
+        "id": "j0",
+        "point": [
+          0,
+          0
+        ],
+        "routeIndex": 82
+      }
+    ],
+    "paths": [
+      {
+        "id": "selected",
+        "role": "selected",
+        "points": [
+          [
+            -130,
+            -1858
+          ],
+          [
+            10,
+            -1467
+          ],
+          [
+            50,
+            -1252
+          ],
+          [
+            51,
+            -999
+          ],
+          [
+            -65,
+            -372
+          ],
+          [
+            0,
+            -330
+          ],
+          [
+            26,
+            -277
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1176,
+            215
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            7
+          ]
+        ]
+      },
+      {
+        "id": "b0",
+        "role": "branch",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            -1915,
+            -367
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            0
+          ]
+        ]
+      },
+      {
+        "id": "b1",
+        "role": "branch",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            332,
+            156
+          ],
+          [
+            464,
+            197
+          ],
+          [
+            1582,
+            414
+          ],
+          [
+            1625,
+            432
+          ],
+          [
+            1668,
+            481
+          ],
+          [
+            1682,
+            562
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            0
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Junction companion workspace
 
-OsmAnd calculates the motorcycle route on Android. The planned standalone Garmin Forerunner 970 app will show a compact junction schematic. **Current priority: prove that OsmAnd's actual route/branch data is useful before further watch integration.**
+OsmAnd calculates the motorcycle route on Android. The standalone Garmin Forerunner 970 prototype shows a fixed upcoming-junction schematic, with gray road context, the selected route in yellow and a one-second test countdown. **Current priority: review actual road layouts using watch previews and the simulator; continuous phone position delivery is still pending.**
 
 Start with [current status](tasks/START_HERE.md), [verification evidence](tasks/verification.md), and the [execution tasks](tasks/todo.md). [AGENTS.md](AGENTS.md) records project instructions. This is an implementation in progress, not a finished navigation companion.
 

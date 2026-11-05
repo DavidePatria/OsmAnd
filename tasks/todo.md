@@ -96,7 +96,9 @@ Progress: one real tethered echo/phone-ACK test passed (T03-3, replies 1–6 dra
 
 ## T04 — Specify the versioned snapshot and executable contract examples
 
-**Status:** not_started. **Dependencies:** T03. **Scope:** M, 3–5 files.
+**Status:** in_progress. **Dependencies:** T03. **Scope:** M, 3–5 files.
+
+Draft scene validators, public recorded fixtures and `integrations/garmin/contract.md` are implemented. Full AIDL/live request/epoch envelope and machine-readable delivery schema remain pending. Scene-only checks do not close T04.
 
 **Description:** Freeze the data boundary for the exporter, bridge, watch and test fixtures. Use the plan's fixed defaults and T03 measurements. This task writes the exact field schema, not a second approximate prose description.
 
@@ -113,7 +115,9 @@ Progress: one real tethered echo/phone-ACK test passed (T03-3, replies 1–6 dra
 
 ## T05 — Replay fixtures through the actual watch state and drawing code
 
-**Status:** not_started. **Dependencies:** T02, T04. **Scope:** M.
+**Status:** in_progress. **Dependencies:** T02, draft T04 scene boundary; promoted by the user's request for simulator-based data review. **Scope:** M.
+
+Actual replay, fixed yellow-route/gray-road layout, one-second simulated progress, bounded distance anticipation, pause/frame stepping/speed and stale/reroute clearing work. Eleven actual Monkey C tests pass. Three coordinate-linked approximate-font previews are ready for user review. Pixel correctness, full road coverage/grade separation and physical watch remain open; see verification.
 
 **Description:** Establish the fast iteration loop using the production Monkey C decoder/state/renderer. Draw a simple route and known alternatives; use fixture input through a small adapter.
 
@@ -131,6 +135,8 @@ Progress: one real tethered echo/phone-ACK test passed (T03-3, replies 1–6 dra
 ## T06 — Capture actual calculated-route data for two ambiguous junctions
 
 **Status:** in_progress. **Dependencies:** calculated-route baseline from T01; promoted ahead of T03/T04 by explicit user direction. **Scope:** M, approximately 3 files.
+
+Latest: captured the user's selected motorcycle route read-only (163 points / 32 segments / 12 maneuvers). A bounded desktop query of the same OBF using OsmAnd's reader supplies unfiltered road context; three watch-layout previews have coordinate links. Grade-separated scenes remain limited. User-selected endpoints are preserved; continuous progress export and fix cadence measurement remain pending.
 
 **Completed sub-checkpoint:** debug-only shell/DUMP-protected capture builds and passes on the real phone in actual motorcycle/derived-motorcycle mode. It retains 946 indexed points, 99 selected segments, 20 maneuvers, 252 attached entries and 1,336 raw pre-attached entries. CLI capture, structural validation and HTML diagnostic review work. Evidence: `build/garmin-review/review-T06/motorcycle/`; build `review-T06-build-checkpoint.log`. Map comparison and a geometry-usability verdict for the close-turn/fork candidates are still open; do not mark the whole task complete.
 

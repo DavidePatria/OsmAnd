@@ -4,12 +4,12 @@
 Command interface (defined in tasks/plan.md section 5):
   doctor   - report environment readiness and source lock (T00)
   build    - build osmand|bridge|watch|all        (planned, later tasks)
-  check    - run geometry|api|protocol|watch suites (planned, later tasks)
-  run      - run replay|desk scenarios             (planned, later tasks)
+  check    - scene/protocol or real watch tests; geometry|api pending
+  run      - watch/echo smoke or recorded-scene replay; desk pending
   iterate  - incremental build/deploy/launch loop   (planned, later tasks)
 
-`doctor`, `build --target watch|bridge`, and `run --mode watch-smoke|echo-prepare|echo-smoke`
-are implemented. Other targets and commands fail explicitly instead of pretending success.
+Implemented: doctor, watch/bridge builds, watch/echo smoke, recorded replay,
+scene and actual Monkey C checks. Other targets fail explicitly.
 
 Local configuration: --config <json> (see dev-config.example.json),
 environment variables, then defaults. Paths and device serials are local
@@ -412,7 +412,7 @@ def not_implemented(command):
     return 2
 
 
-def build_watch(cfg, out_dir):
+def build_watch(cfg, out_dir, jungle=None, unit_tests=False):
     """Compile the actual watch application and retain reproducible evidence."""
     out_dir.mkdir(parents=True, exist_ok=True)
     output = out_dir.resolve() / "Junction.prg"
@@ -429,8 +429,10 @@ def build_watch(cfg, out_dir):
     command = [
         str(Path(sdk["path"]) / "bin/monkeyc"),
         "-d", sdk["device"], "-o", str(output), "-y", str(key),
-        "-f", str(TOOL_DIR / "watch/monkey.jungle"),
+        "-f", str(jungle or TOOL_DIR / "watch/monkey.jungle"),
     ]
+    if unit_tests:
+        command.append("--unit-test")
     try:
         result = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
         code = result.returncode
@@ -444,6 +446,8 @@ def build_watch(cfg, out_dir):
         command=command,
         sdk_version=sdk["version"],
         source_head=git_head(REPO_ROOT),
+        jungle_sha256=sha256(Path(jungle or TOOL_DIR / "watch/monkey.jungle")),
+        unit_tests=unit_tests,
         source_hashes={str(p.relative_to(REPO_ROOT)): sha256(p)
                        for p in sorted((TOOL_DIR / "watch").rglob("*"))
                        if p.is_file() and "build" not in p.relative_to(TOOL_DIR / "watch").parts},
@@ -752,7 +756,17 @@ def main(argv):
     p_run.add_argument("--out", default="build/garmin-review/watch-smoke")
     p_run.add_argument("--config", help="private local config JSON")
     p_run.add_argument("--timeout", type=float, default=45, help="runtime timeout in seconds")
-    for name in ("check", "iterate"):
+    p_run.add_argument("--scenario", choices=("double-turn", "next-turn", "fork"), default="double-turn")
+    p_run.add_argument("--speed", type=float, default=1)
+    p_run.add_argument("--capture", type=Path, help="actual raw OsmAnd route capture to compile for replay")
+    p_run.add_argument("--context", type=Path, help="matching unfiltered OBF road-context query (optional)")
+    p_run.add_argument("--maneuver", type=int, help="original maneuver index in the supplied capture")
+    p_run.add_argument("--hold", action="store_true", help="hold the first replay scene; Start/Select toggles playback")
+    p_check = sub.add_parser("check", help="run actual scene/protocol or watch tests")
+    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "geometry", "api", "all"))
+    p_check.add_argument("--out", default="build/garmin-review/check")
+    p_check.add_argument("--config")
+    for name in ("iterate",):
         p = sub.add_parser(name, help=f"[planned] {name}")
         p.add_argument("args", nargs="*")
 
@@ -773,11 +787,24 @@ def main(argv):
         if not out_dir.is_absolute():
             out_dir = REPO_ROOT / out_dir
         return doctor(cfg, out_dir)
+    if args.command == "check" and args.suite in ("protocol", "watch"):
+        from replay import check_protocol, check_watch
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute(): out_dir=REPO_ROOT/out_dir
+        if args.suite == "protocol": return check_protocol(sys.modules[__name__],out_dir)
+        return check_watch(sys.modules[__name__],cfg,out_dir)
     if args.command == "build" and args.target in ("watch", "bridge"):
         out_dir = Path(args.out)
         if not out_dir.is_absolute():
             out_dir = REPO_ROOT / out_dir
         return {"watch": build_watch, "bridge": build_bridge}[args.target](cfg, out_dir)
+    if args.command == "run" and args.mode == "replay":
+        if not 0.25 <= args.speed <= 8 or args.timeout <= 0:
+            parser.error("replay speed must be 0.25..8 and timeout positive")
+        from replay import run_replay
+        out_dir = Path(args.out)
+        if not out_dir.is_absolute(): out_dir = REPO_ROOT / out_dir
+        return run_replay(sys.modules[__name__], cfg, out_dir, args.scenario, args.speed, args.timeout, args.capture, args.maneuver, args.hold, args.context)
     if args.command == "run" and args.mode in ("watch-smoke", "echo-prepare", "echo-smoke"):
         if args.timeout <= 0:
             parser.error("--timeout must be positive")

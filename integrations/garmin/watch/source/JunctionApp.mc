@@ -3,28 +3,30 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.WatchUi;
 
-const JUNCTION_BUILD_ID = "T03-3";
+const JUNCTION_BUILD_ID = "T05-2";
 
-//! Minimal junction-companion scaffold (T02): shows a build identifier.
-//! The real decoder/state/renderer replace this view in later tasks.
+//! Shared scene state and renderer, with build-selected replay or echo input.
 class JunctionApp extends Application.AppBase {
     var echo as EchoClient = new EchoClient();
+    var nav as NavigationState = new NavigationState();
+    var input as InputAdapter;
 
     function initialize() {
         AppBase.initialize();
+        input=createInput(self);
     }
 
     function onStart(state as Dictionary?) as Void {
         System.println("JUNCTION_START build=" + JUNCTION_BUILD_ID);
-        echo.start();
+        input.start();
     }
 
     function onStop(state as Dictionary?) as Void {
-        echo.stop();
+        input.stop();
     }
 
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [ new JunctionView() ];
+        return [ new JunctionView(), new JunctionDelegate() ];
     }
 }
 

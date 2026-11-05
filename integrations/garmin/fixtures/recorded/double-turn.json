@@ -1,0 +1,153 @@
+{
+  "provenance": {
+    "kind": "actual_osmand_capture",
+    "captureSha256": "0a58cf1db4cbec158e5e24c09563c357d1e559740f67aa489133489866c86c51",
+    "applicationMode": "motorcycle",
+    "maneuverIndex": 5,
+    "routePointOffset": 75,
+    "conversion": "diagnostic projection/simplification; production Java geometry pending"
+  },
+  "scene": {
+    "version": 1,
+    "session": "replay-0a58cf1db4cbec15",
+    "generation": 1,
+    "seq": 1,
+    "state": "active",
+    "geometryMode": "routing_branches",
+    "reason": "routing data may omit roads",
+    "distanceM": 120,
+    "roadName": "Piazza Raffaele Palomba",
+    "maneuver": "TR",
+    "radiusDm": 2000,
+    "sourceAgeMs": 0,
+    "fixAgeMs": 0,
+    "anchors": [
+      {
+        "id": "j0",
+        "point": [
+          0,
+          0
+        ],
+        "routeIndex": 75
+      },
+      {
+        "id": "j1",
+        "point": [
+          141,
+          351
+        ],
+        "routeIndex": 82
+      }
+    ],
+    "paths": [
+      {
+        "id": "selected",
+        "role": "selected",
+        "points": [
+          [
+            -374,
+            -1439
+          ],
+          [
+            -156,
+            -1086
+          ],
+          [
+            -55,
+            -828
+          ],
+          [
+            -16,
+            -597
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            72,
+            28
+          ],
+          [
+            108,
+            74
+          ],
+          [
+            141,
+            351
+          ],
+          [
+            1336,
+            314
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            4
+          ],
+          [
+            "j1",
+            7
+          ]
+        ]
+      },
+      {
+        "id": "b0",
+        "role": "branch",
+        "points": [
+          [
+            141,
+            351
+          ],
+          [
+            -1910,
+            395
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j1",
+            0
+          ]
+        ]
+      },
+      {
+        "id": "b1",
+        "role": "branch",
+        "points": [
+          [
+            141,
+            351
+          ],
+          [
+            498,
+            433
+          ],
+          [
+            637,
+            446
+          ],
+          [
+            1775,
+            424
+          ],
+          [
+            1842,
+            445
+          ],
+          [
+            1887,
+            493
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j1",
+            0
+          ]
+        ]
+      }
+    ]
+  }
+}
