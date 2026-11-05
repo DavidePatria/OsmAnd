@@ -1,3 +1,5 @@
+> Custom junction-companion work: start at [JUNCTION.md](JUNCTION.md) for status, portable setup, and the Android/Garmin project layout.
+
 OsmAnd (OSM Automated Navigation Directions)
 ------------
 This project aims at providing comfortable map viewing and navigation (routing) application for mobile devices. Particular stress lies with complete offline features (via pre-loaded offline map data) or economic internet usage.

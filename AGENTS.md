@@ -153,3 +153,17 @@ Decided by the agent, not requested explicitly: ...
 ```
 
 *Note: This file is a living document and should be updated as the project evolves.*
+
+## 12. Junction companion project instructions
+
+These instructions capture the user's current requirements for this local project.
+
+- **Current priority:** verify the usefulness of actual OsmAnd calculated-route and junction data before further phone/watch integration. Read `tasks/START_HERE.md`, `tasks/todo.md`, and `tasks/verification.md`; keep observed results separate from assumptions and unexecuted checks.
+- **Target:** Android phone navigation, motorcycle routes calculated by OsmAnd, standalone Garmin Forerunner 970 app. Wrist and mounted layouts share the same data. Preserve junction shape, selected branches and nearby decision points; never present synthetic branches as extracted road data.
+- **Scope:** contained read-only integration, independent companion project, no changes to native routing decisions or a second map database. Keep diagnostics in explicitly debug-only sources and protect exported test controls. Preserve the user's F-Droid app and data; install only the separate development identities.
+- **Desk iteration:** automate incremental builds, update installation, launch, scenario setup and evidence collection. Connected devices and human supervision are available. Avoid repeated manual installation/menu/route setup; report measured unavoidable actions honestly. Simulator success does not establish physical Garmin/Bluetooth behavior.
+- **Communication:** keep the user informed during work, normally within 60 seconds. Include concrete commands, observed states, failure boundaries and the next discriminating check so the user can spot low-level mistakes and help. Report failures promptly; do not quietly repeat attempts or turn uncertain results into passes.
+- **Visual review:** the user supplies screenshots when useful. Do not repeatedly request them. A drawing callback proves code execution, not pixel correctness. Respect the available UI tooling and approval restrictions.
+- **Handoff readiness:** after each important checkpoint, update concise status/evidence/next-step documentation. Reference existing plans instead of duplicating them. Development remains the priority. Keep an optional temporary handoff free of private device identifiers, credentials and signing material.
+- **Portable repository:** this Git repository contains the Android customization, `integrations/garmin/` companion/tooling and `tasks/` documentation. Recreate required sibling build inputs using `integrations/garmin/workspace.lock.json` and `bootstrap.py`; never overwrite/reset an existing checkout automatically. Private local configuration and keys stay outside Git. See `JUNCTION.md` for a fresh-machine workflow.
+- **Git:** the user has explicitly requested focused local commits for the current checkpoint and a clean index. Commit cohesive validated changes with accurate documentation; do not include SDKs, binaries, caches, raw device logs or private configuration. Future commits require user authorization. GitHub account/repository creation, remote changes and pushing remain manual unless explicitly requested. Do not install GitHub CLI/connectors for this workflow.
