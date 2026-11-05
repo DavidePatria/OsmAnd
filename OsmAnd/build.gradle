@@ -83,6 +83,7 @@ android {
 	sourceSets {
 		debug {
 			manifest.srcFile "AndroidManifest-debug.xml"
+			java.srcDir "src-debug"
 		}
 		gplayFull {
 			java.srcDirs = ["src-google", "src-gplay"]
@@ -162,6 +163,11 @@ android {
 	buildTypes {
 		debug {
 			signingConfig signingConfigs.development
+			// Separate development identity (net.osmand.plus.junction) so the
+			// dev APK never conflicts with the user's F-Droid-signed install.
+			applicationIdSuffix ".junction"
+			// Distinguish the dev install from the F-Droid OsmAnd~ in the launcher.
+			resValue "string", "app_name", "OsmAnd~ Junction"
 		}
 		release {
 			signingConfig signingConfigs.publishing

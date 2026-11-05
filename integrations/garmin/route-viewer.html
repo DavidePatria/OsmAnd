@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OsmAnd route-data review</title>
+<style>
+body{margin:24px auto;padding:0 20px;max-width:1000px;font:16px system-ui;background:#101722;color:#edf2f7}h1{font-size:24px}label,button,select{margin:6px}button,select{font:inherit;padding:8px}svg{background:#071019;border:1px solid #506071;border-radius:12px;width:min(100%,660px);height:auto}pre{white-space:pre-wrap;font-size:13px;color:#b8c8d8}.route{stroke:#ffca58;stroke-width:5}.road{stroke:#8e9cae;stroke-width:2}.candidate{stroke:#b28bd4;stroke-dasharray:5 4;stroke-width:1.5}.anchor{fill:#071019;stroke:#ffca58;stroke-width:2}path,polyline{fill:none;stroke-linejoin:round;stroke-linecap:round}
+</style>
+<h1>Actual OsmAnd route — junction-data review</h1>
+<p>Diagnostic view, not the watch renderer. Amber: calculated route. Grey: available attached roads and route-road continuations. Purple: optional raw candidates. Missing or filtered roads remain possible.</p>
+<div><button id="previous">Previous</button><select id="maneuver" aria-label="Maneuver"></select><button id="next">Next</button></div>
+<div><label>Radius <input id="radius" type="range" min="75" max="500" value="200" step="25"> <span id="radiusLabel"></span> m</label><label><input id="raw" type="checkbox"> Show raw pre-attached candidates</label></div>
+<svg id="scene" viewBox="-220 -220 440 440" role="img" aria-label="Junction geometry from captured route data"></svg>
+<pre id="details"></pre>
+<script>
+const data=__ROUTE_DATA__;
+const ns='http://www.w3.org/2000/svg', scene=document.querySelector('#scene');
+const select=document.querySelector('#maneuver'), radius=document.querySelector('#radius'), raw=document.querySelector('#raw');
+const distance=(a,b)=>{const p=Math.PI/180, x=(b[1]-a[1])*p*Math.cos((a[0]+b[0])*p/2),y=(b[0]-a[0])*p;return 6371000*Math.hypot(x,y)};
+const cumulative=[0];for(let i=1;i<data.locationsLatLon.length;i++)cumulative.push(cumulative[i-1]+distance(data.locationsLatLon[i-1],data.locationsLatLon[i]));
+const segments=data.segments.map(s=>({...s,nodes:new Map(s.points.map(p=>[p[0],p]))}));
+for(const direction of data.directions){const option=document.createElement('option');option.value=direction.index;option.textContent=`${direction.index}: ${direction.turn} — ${direction.streetName||'unnamed'} (${direction.distanceAfterM} m to next)`;select.append(option)}
+function element(tag,attrs){const e=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);scene.append(e);return e}
+function render(){
+ const d=data.directions[+select.value], anchor=data.locationsLatLon[d.routePointOffset], R=+radius.value;
+ document.querySelector('#radiusLabel').textContent=R;scene.replaceChildren();scene.setAttribute('viewBox',`${-R} ${-R} ${2*R} ${2*R}`);
+ const north=p=>(p[0]-anchor[0])*Math.PI/180*6371000,east=p=>(p[1]-anchor[1])*Math.PI/180*6371000*Math.cos(anchor[0]*Math.PI/180);
+ const previous=data.locationsLatLon[Math.max(0,d.routePointOffset-2)],bearing=Math.atan2(-east(previous),-north(previous));
+ const project=p=>{const e=east(p),n=north(p);return [e*Math.cos(bearing)-n*Math.sin(bearing),-(e*Math.sin(bearing)+n*Math.cos(bearing))]};
+ const local=p=>{const q=project(p);return Math.hypot(...q)<=R*1.2};
+ const road=(s,kind)=>{if(s.points.length>1)element('polyline',{points:s.points.map(p=>project([p[3],p[4]]).join(',')).join(' '),class:kind})};
+ let attachmentNodes=0,attached=0,candidates=0,missing=0;const seen=new Set();
+ for(const s of segments){
+  const nearby=s.attachments.filter(a=>{const p=s.nodes.get(a.roadPointIndex);return p&&local([p[3],p[4]])});
+  if(!nearby.length)continue;road(s,'road');
+  for(const a of nearby){attachmentNodes++;if(a.attachedStorage!=='available')missing++;
+   for(const [name,kind]of [['attached','road'],['preAttached','candidate']]){
+    if(name==='preAttached'&&!raw.checked)continue;
+    for(const branch of a[name]){const key=[name,branch.roadId,branch.startPointIndex,branch.endPointIndex].join(':');if(seen.has(key))continue;seen.add(key);road(branch,kind);if(name==='attached')attached++;else candidates++}
+   }
+  }
+ }
+ const at=cumulative[d.routePointOffset];const indices=data.locationsLatLon.map((_,i)=>i).filter(i=>Math.abs(cumulative[i]-at)<=R*1.8);
+ element('polyline',{points:indices.map(i=>project(data.locationsLatLon[i]).join(',')).join(' '),class:'route'});
+ for(const other of data.directions){const p=data.locationsLatLon[other.routePointOffset];if(local(p)){const q=project(p);element('circle',{cx:q[0],cy:q[1],r:Math.max(2,R/45),class:'anchor'});const t=element('text',{x:q[0]+R/30,y:q[1]-R/30,fill:'#fff','font-size':R/16});t.textContent=other.index}}
+ const next=data.directions[+select.value+1],gap=next?Math.round(cumulative[next.routePointOffset]-at):null;
+ document.querySelector('#details').textContent=JSON.stringify({applicationMode:data.applicationMode,derivedProfile:data.derivedProfile,status:data.status,coherent:data.coherent,maneuver:d.index,turn:d.turn,routePointOffset:d.routePointOffset,nextManeuverAlongRouteM:gap,localAttachmentNodes:attachmentNodes,localDistinctAttachedPaths:attached,localRawCandidatePaths:candidates,localUnavailableAttachmentStorage:missing,orientation:'approach up; indexed route retained; no inferred connectivity'},null,2);
+}
+select.onchange=radius.oninput=raw.onchange=render;
+document.querySelector('#previous').onclick=()=>{select.selectedIndex=Math.max(0,select.selectedIndex-1);render()};
+document.querySelector('#next').onclick=()=>{select.selectedIndex=Math.min(select.options.length-1,select.selectedIndex+1);render()};
+select.value=data.directions.some(d=>d.index===5)?'5':select.options[0].value;render();
+</script>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only launcher background: dark, so the dev install is visibly
+     different from the light F-Droid OsmAnd~ icon. Release keeps the PNGs. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#263238" />
+</shape>

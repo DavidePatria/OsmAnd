@@ -2,4 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
      <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+     <application>
+          <provider android:name="androidx.core.content.FileProvider"
+                    android:authorities="${applicationId}.fileprovider"
+                    tools:replace="android:authorities" />
+          <receiver android:name="net.osmand.plus.routing.companion.DebugRouteProbeReceiver"
+                    android:exported="true" android:permission="android.permission.DUMP" />
+     </application>
 </manifest> 
