@@ -89,6 +89,7 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
             val state = when {
                 app.isApplicationInitializing -> State.UNAVAILABLE
                 helper.isRouteBeingCalculated -> State.RECALCULATING
+                helper.isRouteWasFinished -> State.ARRIVED
                 helper.isPauseNavigation -> State.PAUSED
                 !helper.isFollowingMode || !route.isCalculated -> State.IDLE
                 helper.isDeviatedFromRoute -> State.OFF_ROUTE
