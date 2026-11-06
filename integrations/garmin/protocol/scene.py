@@ -8,7 +8,7 @@ MAX_PATH_POINTS = 24
 MAX_POINTS = 96
 MAX_RADIUS_DM = 2000
 STATES = {"active", "idle", "recalculating", "unavailable"}
-MODES = {"routing_branches", "map_context", "route_only", "unavailable"}
+MODES = {"routing_branches", "map_context", "layer_context", "route_only", "unavailable"}
 
 
 def integer(value, low, high):
@@ -28,10 +28,11 @@ def validate(scene):
     for key in ("generation", "seq"):
         if not integer(scene.get(key), 0, 1_000_000): errors.append(key)
     if not isinstance(scene.get("session"), str) or not 1 <= len(scene["session"]) <= 64: errors.append("session")
-    if scene.get("state") not in STATES: errors.append("state")
-    if scene.get("geometryMode") not in MODES: errors.append("geometryMode")
-    full_context=scene.get("geometryMode")=="map_context"
+    if not isinstance(scene.get("state"),str) or scene["state"] not in STATES: errors.append("state")
+    if not isinstance(scene.get("geometryMode"),str) or scene["geometryMode"] not in MODES: errors.append("geometryMode")
+    full_context=scene.get("geometryMode") in ("map_context","layer_context")
     max_paths,max_path_points,max_points=(32,48,512) if full_context else (MAX_PATHS,MAX_PATH_POINTS,MAX_POINTS)
+    if scene.get("geometryMode")=="layer_context":max_paths=40
     for key in ("sourceAgeMs", "fixAgeMs"):
         if not integer(scene.get(key), 0, 60_000): errors.append(key)
     # Optional pair. distanceM refers to this route-matched sample, not an
@@ -60,11 +61,18 @@ def validate(scene):
     for path in paths:
         if not isinstance(path, dict): errors.append("path"); continue
         identity, role, points, links = path.get("id"), path.get("role"), path.get("points"), path.get("anchorRefs")
-        if not isinstance(identity, str) or not 1 <= len(identity) <= 32 or identity in ids: errors.append("path id")
+        if not isinstance(identity, str) or not 1 <= len(identity) <= (24 if scene.get("geometryMode")=="layer_context" else 32) or identity in ids: errors.append("path id")
         else: ids.add(identity)
         if role not in ("selected", "branch", "context") or (role=="context" and not full_context): errors.append("path role")
         selected += role == "selected"
         if not isinstance(points, list) or not 2 <= len(points) <= max_path_points: errors.append("path point count"); continue
+        if scene.get("geometryMode")=="layer_context":
+            if not integer(path.get("layer"),-10,10):errors.append("path layer")
+            if role=="selected":
+                levels=path.get("segmentLayers")
+                if not isinstance(levels,list) or len(levels)!=len(points)-1 or any(not integer(n,-10,10) for n in levels):errors.append("segment layers")
+            elif "segmentLayers" in path:errors.append("context segment layers")
+        elif "layer" in path or "segmentLayers" in path:errors.append("unexpected layer metadata")
         total += len(points)
         if any(not valid_point(p, radius) for p in points): errors.append("point coordinates")
         if not isinstance(links, list) or (not links and role!="context") or len(links)>4 or (role=="context" and links): errors.append("path anchor refs"); continue
@@ -80,5 +88,5 @@ def validate(scene):
     active_geometry = scene.get("state") == "active" and scene.get("geometryMode") != "unavailable"
     if active_geometry and (selected != 1 or not anchors): errors.append("missing selected path/anchor")
     if not active_geometry and (paths or anchors): errors.append("inactive state must clear geometry")
-    if scene.get("geometryMode") == "route_only" and any(p.get("role") != "selected" for p in paths): errors.append("route_only contains branches")
+    if scene.get("geometryMode") == "route_only" and any(not isinstance(p,dict) or p.get("role") != "selected" for p in paths): errors.append("route_only contains branches")
     return errors

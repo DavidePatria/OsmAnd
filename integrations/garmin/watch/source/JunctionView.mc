@@ -6,14 +6,21 @@ import Toybox.WatchUi;
 class JunctionView extends WatchUi.View {
     private var _loggedDraw as Boolean = false;
     private var _last as String = "";
+    private var _sampledMemoryPeak as Number = 0;
     private var _renderer as JunctionRenderer = new JunctionRenderer();
     function initialize() { View.initialize(); }
     function onUpdate(dc as Dc) as Void {
         var app=getApp();
-        if (REPLAY_MODE) {
+        if (REPLAY_MODE || NAVIGATION_MODE) {
             var now=app.input.now();
             _renderer.draw(dc,app.nav,now,app.input.paused());
             var status=app.nav.status(now), scene=app.nav.scene();
+            app.input.didDraw(scene,status);
+            var memory=System.getSystemStats();
+            if (memory.usedMemory>_sampledMemoryPeak) {
+                _sampledMemoryPeak=memory.usedMemory;
+                System.println("JUNCTION_MEMORY sampledUsed="+memory.usedMemory+" free="+memory.freeMemory);
+            }
             var distance=app.nav.displayDistance(now);
             var key=status+":"+app.nav.sequence()+":"+distance;
             if (!_last.equals(key)) {
@@ -36,5 +43,6 @@ class JunctionView extends WatchUi.View {
             System.println("JUNCTION_FRAME build="+JUNCTION_BUILD_ID+" width="+dc.getWidth()+" height="+dc.getHeight());
             _loggedDraw=true;
         }
+        app.input.afterFrame();
     }
 }

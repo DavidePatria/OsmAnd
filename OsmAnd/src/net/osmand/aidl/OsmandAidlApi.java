@@ -111,6 +111,7 @@ import net.osmand.plus.resources.SQLiteTileSource;
 import net.osmand.plus.routing.IRoutingDataUpdateListener;
 import net.osmand.plus.routing.NextDirectionInfo;
 import net.osmand.plus.routing.RoutingHelper;
+import net.osmand.plus.routing.companion.JunctionSnapshotProvider;
 import net.osmand.plus.routing.VoiceRouter;
 import net.osmand.plus.routing.VoiceRouter.VoiceMessageListener;
 import net.osmand.plus.settings.backend.ApplicationMode;
@@ -267,9 +268,11 @@ public class OsmandAidlApi {
 	private List<WptPt> pointsCache;
 
 	private boolean mapActivityActive;
+	private final JunctionSnapshotProvider junctionSnapshotProvider;
 
 	public OsmandAidlApi(@NonNull OsmandApplication app) {
 		this.app = app;
+		this.junctionSnapshotProvider = new JunctionSnapshotProvider(app);
 		// before the tracks are loaded: settings a crashed flyover recording left behind
 		FlyoverSession.recover(app);
 		loadConnectedApps();
@@ -2498,6 +2501,13 @@ public class OsmandAidlApi {
 		}
 		AppInfoParams params = new AppInfoParams(lastKnownLocation, mapLocation, turnInfo, leftTime, leftDistance, arrivalTime, mapVisible);
 		params.setVersionsInfo(ExternalApiHelper.getPluginAndProfileVersions());
+		Bundle navigationSnapshot = junctionSnapshotProvider.snapshot();
+		if (navigationSnapshot == null) {
+			navigationSnapshot = new Bundle();
+			navigationSnapshot.putInt("version", 1);
+			navigationSnapshot.putString("status", "unavailable");
+		}
+		params.setNavigationSnapshot(navigationSnapshot);
 		params.setDestinationLocation(destinationLocation);
 		params.setOsmAndVersion(Version.getFullVersion(app));
 		String releaseDate = app.getString(R.string.app_edition);

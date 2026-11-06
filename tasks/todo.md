@@ -98,14 +98,17 @@ Progress: one real tethered echo/phone-ACK test passed (T03-3, replies 1–6 dra
 
 **Status:** in_progress. **Dependencies:** T03. **Scope:** M, 3–5 files.
 
-Draft scene validators, public recorded fixtures and `integrations/garmin/contract.md` are implemented. Full AIDL/live request/epoch envelope and machine-readable delivery schema remain pending. Scene-only checks do not close T04.
+Scene and request/reply schemas, executable Python/bridge/watch validators,
+public contract examples and `contract.md` are implemented. Local schema/examples
+validation and 27 protocol/scene tests pass. Actual encoded SDK size/throughput
+limits are not certified, so retain the platform measurement gate.
 
 **Description:** Freeze the data boundary for the exporter, bridge, watch and test fixtures. Use the plan's fixed defaults and T03 measurements. This task writes the exact field schema, not a second approximate prose description.
 
 **Acceptance criteria:**
-- [ ] Schema/examples define field types, units, axes, origin, path roles, selected route, explicit junction connectivity/anchor references, bounds and optional/unknown values. Equal screen coordinates alone do not imply connected roads.
-- [ ] State transitions, session/generation/sequence and current-request/connection-epoch rules, conservative source vs transport freshness, bounded number handling and compatibility are specified with valid and invalid examples.
-- [ ] A validator accepts every valid example and rejects unsupported versions, inconsistent graph/path references, nonfinite/out-of-range coordinates and geometry overflow. Minimal old-client/absent-snapshot behavior is defined.
+- [x] Schema/examples define field types, units, axes, origin, path roles, selected route, explicit junction connectivity/anchor references, bounds and optional/unknown values. Equal screen coordinates alone do not imply connected roads.
+- [x] State transitions, session/generation/sequence and current-request/connection-epoch rules, conservative source vs transport freshness, bounded number handling and compatibility are specified with valid and invalid examples.
+- [x] A validator accepts every valid example and rejects unsupported versions, inconsistent graph/path references, nonfinite/out-of-range coordinates and geometry overflow. Minimal old-client/absent-snapshot behavior is defined.
 
 **Verification:** `python3 integrations/garmin/dev.py check --suite protocol --out build/garmin-review/T04`; test at least active, idle, partial geometry, stale-source, old-generation and malformed cases. Implement the command rather than assuming it already exists.
 
@@ -155,7 +158,19 @@ Latest: captured the user's selected motorcycle route read-only (163 points / 32
 
 ## T07 — Produce bounded local junction geometry with plain-data tests
 
-**Status:** not_started. **Dependencies:** T04, T06. **Scope:** M, split projection from simplification if needed.
+**Status:** in_progress. **Dependencies:** T04, T06. **Scope:** M, split projection from simplification if needed.
+
+Offline slices authorized by the user:
+- [x] T07a: immutable Java inputs/scene, projection, anchored simplification, clipping/access filter and bounded fallback; focused JVM tests.
+- [x] T07b: dedicated read-only OBF reader and saved-route runner using the SAME Java engine; compare approved examples and feed actual watch replay.
+- [x] T08a: lifecycle/cache and compatible optional API export with host/build checks; retain device-only verification gaps.
+- [x] T09a: request/deadline/epoch delivery state and recorded-input tests; retain phone/Bluetooth gates.
+
+Portable coverage now includes two PUBLIC real/native route windows and OBF road
+contexts (TR/TR at original indexes 75/82, TSLL fork at 219), plus a million-point
+source accessor test. `JunctionWindow` reads only the local subset; the runner
+asserts exact full/window geometry equality. Twenty JVM checks pass. Grade-aware
+layout/complex coverage remains a product limitation, not a closed usability gate.
 
 **Description:** Implement local coordinates, route/branch selection, topology-preserving simplification and bounds using plain Java. Start from T06's actual captured inputs and independently specified small graphs.
 
@@ -172,12 +187,18 @@ Latest: captured the user's selected motorcycle route read-only (163 points / 32
 
 ## T08 — Expose compatible coherent snapshots through AIDL
 
-**Status:** not_started. **Dependencies:** T04, T06, T07. **Scope:** M, 4–5 files.
+**Status:** in_progress. **Dependencies:** T04, T06, T07. **Scope:** M, 4–5 files.
+
+Offline implementation: immutable snapshot/cache with obsolete-worker rejection,
+monotonic fix aging, Kotlin read-only provider and optional AppInfoParams Bundle
+hook. Eight actual host Android Parcel tests pass on API 24/36 (old/new/absent
+field compatibility). Final provider/app builds pass; device lifecycle,
+real progress/cadence and actual Binder observations remain untested.
 
 **Description:** Add the optional Bundle field and minimal existing-call hook. Implement lifecycle, source age and cached geometry by route/maneuver, preserving existing clients.
 
 **Acceptance criteria:**
-- [ ] AIDL parcel round-trips optional snapshots and preserves existing constructor/keys/turnInfo/null behavior; old-model/new-model combinations behave as specified.
+- [x] AIDL parcel round-trips optional snapshots and preserves existing constructor/keys/turnInfo/null behavior; old-model/new-model combinations behave as specified.
 - [ ] Recalculation, pause, cancel, unavailable route and new sessions invalidate stale geometry appropriately. No mixed-generation snapshot is published; unchanged geometry is cached while distance/state update.
 - [ ] Existing connected-app permission checks apply. App/API builds and focused integration tests pass, including a source-change-during-capture case.
 
@@ -195,7 +216,15 @@ Latest: captured the user's selected motorcycle route read-only (163 points / 32
 
 ## T09 — Feed live AIDL snapshots through the Android bridge
 
-**Status:** not_started. **Dependencies:** T03, T04, T08. **Scope:** M.
+**Status:** in_progress. **Dependencies:** T03, T04, T08. **Scope:** M.
+
+Offline code/checkpoint: explicit dev-app binding, API age conversion/validation,
+user-started connectedDevice foreground service with Start/Stop and watch choice,
+one source/send slot, stale-callback rejection and watch request/epoch/deadline
+handling. Seven bridge host tests and seventeen actual watch tests pass. Bridge
+build/lint pass; real foreground/permission/Binder/Bluetooth behavior remains open.
+The legacy API returns null for permission denial OR internal source error; report
+that ambiguity honestly rather than claiming a distinct positive denial signal.
 
 **Description:** Extend the echo bridge with authorized OsmAnd binding, source snapshot parsing, bounded delivery and visible diagnostic status. Use the freshly built API AAR.
 
@@ -368,3 +397,77 @@ Latest: captured the user's selected motorcycle route read-only (163 points / 32
 | T00–T17 | Not started | None |
 | Android/Garmin builds or hardware tests | Not run | None |
 | Personal fork/commit/push | Deferred to user | None |
+
+
+## T11a — Unattended Waydroid source validation and review gallery
+
+**Status:** complete. **Dependencies:** T07/T08 offline implementation, Waydroid access.
+
+- [x] Debug/DUMP-only current-route controls and actual bridge Binder sampling run
+  without run-as/root; release source/manifest exclude both debug receivers.
+- [x] A real OsmAnd-calculated motorcycle route advances under native simulation;
+  1 Hz exported snapshots, observed fix cadence, stable diagrams and next-junction
+  transitions are measured. Pause/stop/permission-loss/recovery invalidate guidance.
+- [x] Actual exported scenes draw in the Garmin simulator and a coordinate-linked
+  gallery is left for human review, with limited/unavailable modes labeled.
+
+Evidence: ignored `build/garmin-review/waydroid/desk/`; record real results and
+remaining coverage in verification.md. Physical T10/Checkpoint C stay open.
+
+
+## T13a — Waydroid screen-off and SDK capacity evidence
+
+**Status:** complete. This is a software/framework subset, not physical T13.
+
+- [x] 30-minute PUBLIC-route screen-off run retains fresh native fixes and API
+  progress with no unexplained >5 s gaps; record real metrics and the power state.
+- [x] Real SDK serialization round-trips actual samples and maximum valid UTF-8
+  geometry with measured headroom under the pinned SDK's send limit.
+- [x] Maximum geometry renders under the NORMAL watch application heap; distinguish
+  this from the unit-test heap and from actual mapped-junction evidence.
+
+Scope limits: physical GPS/Bluetooth, OEM suspend/battery, API 34+ foreground policy
+and real-watch/riding readability remain unverified. No physical phone is accessed.
+
+
+## T07c — Restore road context for the four rejected limited examples
+
+**Status:** complete. User approved examples 1–5; 6–9 now retain gray alternatives.
+
+- [x] Bridge/tunnel drawing levels retain all motor-road geometry; building passages
+  alone do not suppress it. Selected-route level transitions survive simplification.
+- [x] Level-aware mode is strictly validated across Java/API/bridge/watch/schema;
+  ordinary mode remains unchanged, and maximum packets/heap remain bounded.
+- [x] Examples 1–5 match approved geometry, example numbers stay stable, and all
+  four replaced views are verified in Android and the actual Garmin simulator.
+
+Evidence: ignored build/garmin-review/grade-review/. No native routing changes.
+
+
+## T09b — Connected simulator throughput correction
+
+**Status:** complete for the measured Rome route; physical/maximum-scene latency remains open.
+
+- [x] Reproduce live expiry with the actual SDK; keep strict age/deadline checks.
+- [x] Lossless compact reply restores all scene fields before existing validators;
+  independent public Python/Kotlin/SDK/Monkey C goldens pass.
+- [x] Actual native journey draws seven full layouts without expiry, with matching
+  drawing ACKs and arrival clearing. Record packet sizes, cadence and limitations.
+
+Evidence: `rome-challenge/compact-live/summary.json` under ignored review output;
+exact format and alternatives in integrations/garmin/wire.md.
+
+## T12a — Destination, arrival and opt-in automatic startup
+
+**Status:** in_progress. User explicitly chose keeping the bridge SEPARATE.
+
+- [ ] Checkered flag marks the real destination when in the visible scene; no
+  changes to unrelated road geometry or false intermediate-point arrival.
+- [ ] Native arrival produces a dedicated watch screen; cancellation does not.
+  New routes clear arrival, and stale/disconnected data still expires.
+- [ ] OsmAnd has an opt-in automatic bridge-start setting for motorcycle navigation;
+  use explicit package/component handling and normal Android foreground rules.
+- [ ] Starting the bridge requests watch-app opening once, after SDK/device readiness;
+  handle already-running/not-installed/refused/failed states without prompt loops.
+- [ ] Build/tests pass and actual Waydroid/simulator coverage is recorded separately
+  from physical Garmin Connect prompt behavior; handoff docs remain current.

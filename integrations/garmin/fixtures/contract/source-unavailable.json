@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "kind": "junction_unavailable",
+  "epoch": "example-watch-epoch",
+  "requestId": 1,
+  "reason": "source_busy"
+}

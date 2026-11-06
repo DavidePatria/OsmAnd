@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:osmand-junction:scene:1",
+  "description": "Decimeters: x rider-right, y approach-forward. Executable validators also enforce radial bounds, total points, connectivity and state clearing.",
+  "type": "object",
+  "required": [
+    "version",
+    "session",
+    "generation",
+    "seq",
+    "state",
+    "geometryMode",
+    "reason",
+    "distanceM",
+    "roadName",
+    "maneuver",
+    "radiusDm",
+    "sourceAgeMs",
+    "fixAgeMs",
+    "anchors",
+    "paths"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "generation": {
+      "$ref": "#/$defs/counter"
+    },
+    "seq": {
+      "$ref": "#/$defs/counter"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "idle",
+        "recalculating",
+        "unavailable"
+      ]
+    },
+    "geometryMode": {
+      "enum": [
+        "routing_branches",
+        "map_context",
+        "layer_context",
+        "route_only",
+        "unavailable"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "roadName": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "maneuver": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "distanceM": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "radiusDm": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000
+    },
+    "sourceAgeMs": {
+      "$ref": "#/$defs/age"
+    },
+    "fixAgeMs": {
+      "$ref": "#/$defs/age"
+    },
+    "progressAgeMs": {
+      "$ref": "#/$defs/age"
+    },
+    "speedDmps": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 700
+    },
+    "anchors": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "point",
+          "routeIndex"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "point": {
+            "$ref": "#/$defs/point"
+          },
+          "routeIndex": {
+            "$ref": "#/$defs/counter"
+          }
+        }
+      }
+    },
+    "paths": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "points",
+          "anchorRefs"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "role": {
+            "enum": [
+              "selected",
+              "branch",
+              "context"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 48,
+            "items": {
+              "$ref": "#/$defs/point"
+            }
+          },
+          "anchorRefs": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/id"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 47
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "layer": {
+            "type": "integer",
+            "minimum": -10,
+            "maximum": 10
+          },
+          "segmentLayers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 47,
+            "items": {
+              "type": "integer",
+              "minimum": -10,
+              "maximum": 10
+            }
+          }
+        }
+      }
+    }
+  },
+  "dependentRequired": {
+    "progressAgeMs": [
+      "speedDmps"
+    ],
+    "speedDmps": [
+      "progressAgeMs"
+    ]
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "geometryMode": {
+            "enum": [
+              "routing_branches",
+              "route_only",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "paths": {
+            "maxItems": 8,
+            "items": {
+              "properties": {
+                "points": {
+                  "maxItems": 24
+                },
+                "role": {
+                  "enum": [
+                    "selected",
+                    "branch"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "geometryMode": {
+            "const": "layer_context"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "paths": {
+            "items": {
+              "required": [
+                "layer"
+              ],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "role": {
+                        "const": "selected"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "segmentLayers"
+                    ]
+                  },
+                  "else": {
+                    "not": {
+                      "required": [
+                        "segmentLayers"
+                      ]
+                    }
+                  }
+                }
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 24
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "paths": {
+            "items": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "layer"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "segmentLayers"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "geometryMode": {
+            "const": "map_context"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "paths": {
+            "maxItems": 32
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "counter": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 60000
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "point": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": -2000,
+        "maximum": 2000
+      }
+    }
+  }
+}

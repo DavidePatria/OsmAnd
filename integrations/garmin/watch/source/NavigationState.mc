@@ -30,10 +30,10 @@ module SceneDecoder {
         }
         var status=value["state"], mode=value["geometryMode"], radius=value["radiusDm"];
         if (!(status.equals("active") || status.equals("idle") || status.equals("recalculating") || status.equals("unavailable"))) { return null; }
-        if (!(mode.equals("routing_branches") || mode.equals("map_context") || mode.equals("route_only") || mode.equals("unavailable"))) { return null; }
-        var context=mode.equals("map_context");
+        if (!(mode.equals("routing_branches") || mode.equals("map_context") || mode.equals("layer_context") || mode.equals("route_only") || mode.equals("unavailable"))) { return null; }
+        var layered=mode.equals("layer_context"),context=mode.equals("map_context") || layered;
         var anchors=value["anchors"], paths=value["paths"];
-        if (!(anchors instanceof Array) || anchors.size()>4 || !(paths instanceof Array) || paths.size()>(context?32:8)) { return null; }
+        if (!(anchors instanceof Array) || anchors.size()>4 || !(paths instanceof Array) || paths.size()>(layered?40:(context?32:8))) { return null; }
         var byId={}, normalizedAnchors=[];
         for (var i=0; i<anchors.size(); i+=1) {
             var a=anchors[i];
@@ -46,7 +46,7 @@ module SceneDecoder {
         var ids={}, total=0, selected=0, normalizedPaths=[];
         for (var i=0; i<paths.size(); i+=1) {
             var p=paths[i];
-            if (!(p instanceof Dictionary) || !text(p["id"],32) || p["id"].length()==0 || ids.hasKey(p["id"]) || !text(p["role"],16)) { return null; }
+            if (!(p instanceof Dictionary) || !text(p["id"],layered?24:32) || p["id"].length()==0 || ids.hasKey(p["id"]) || !text(p["role"],16)) { return null; }
             ids[p["id"]]=true;
             var role=p["role"], points=p["points"], links=p["anchorRefs"];
             if (!(role.equals("selected") || role.equals("branch") || (context && role.equals("context"))) ||
@@ -56,6 +56,18 @@ module SceneDecoder {
             if (role.equals("selected")) { selected+=1; }
             if (mode.equals("route_only") && !role.equals("selected")) { return null; }
             total+=points.size(); if (total>(context?512:96)) { return null; }
+            var level=0,segmentLayers=[];
+            if (layered) {
+                if (!integer(p["layer"],-10,10)) { return null; }
+                level=p["layer"];
+                if (role.equals("selected")) {
+                    if (!(p["segmentLayers"] instanceof Array) || p["segmentLayers"].size()!=points.size()-1) { return null; }
+                    for (var k=0;k<p["segmentLayers"].size();k+=1) {
+                        if (!integer(p["segmentLayers"][k],-10,10)) { return null; }
+                        segmentLayers.add(p["segmentLayers"][k]);
+                    }
+                } else if (p.hasKey("segmentLayers")) { return null; }
+            } else if (p.hasKey("layer") || p.hasKey("segmentLayers")) { return null; }
             var normalizedPoints=[], normalizedLinks=[], linked={};
             for (var j=0; j<points.size(); j+=1) {
                 if (!point(points[j],radius)) { return null; }
@@ -70,7 +82,12 @@ module SceneDecoder {
                 linked[ref[0]]=true;normalizedLinks.add([ref[0],ref[1]]);
             }
             if (role.equals("selected") && linked.size()!=anchors.size()) { return null; }
-            normalizedPaths.add({"id"=>p["id"],"role"=>role,"points"=>normalizedPoints,"anchorRefs"=>normalizedLinks});
+            var normalizedPath={"id"=>p["id"],"role"=>role,"points"=>normalizedPoints,"anchorRefs"=>normalizedLinks};
+            if (layered) {
+                normalizedPath["layer"]=level;
+                if (role.equals("selected")) { normalizedPath["segmentLayers"]=segmentLayers; }
+            }
+            normalizedPaths.add(normalizedPath);
         }
         var activeGeometry=status.equals("active") && !mode.equals("unavailable");
         if (activeGeometry && (selected!=1 || anchors.size()==0)) { return null; }
@@ -93,7 +110,7 @@ class NavigationState {
     function accept(value as Object?, now as Number) as Boolean {
         var scene=SceneDecoder.decode(value);
         if (scene==null) { return false; }
-        if (_scene!=null && _session.equals(scene["session"])) {
+        if (_generation>=0 && _session.equals(scene["session"])) {
             if (scene["generation"]<_generation || (scene["generation"]==_generation && scene["seq"]<=_seq)) { return false; }
         }
         _scene=scene;_receivedAt=now;_session=scene["session"];
@@ -101,6 +118,7 @@ class NavigationState {
         return true;
     }
     function scene() as Dictionary? { return _scene; }
+    function invalidate() as Void { _scene=null; }
     function sequence() as Number { return _seq; }
     //! Hold the junction scene fixed. Estimate distance only, at most one second
     //! beyond the matched progress sample. Never advance the junction locally.

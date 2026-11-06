@@ -10,14 +10,22 @@ android {
         applicationId 'net.osmand.junction.bridge.debug'
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName '0.1-t03'
+        versionCode 2
+        versionName '0.2-navigation'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = '17' }
+    signingConfigs {
+        debug {
+            // Reuse the existing standard Android debug keystore privately on
+            // another computer; never overwrite that computer's global key.
+            def configured = project.findProperty('junctionDebugKeystore')
+            if (configured) storeFile = file(configured)
+        }
+    }
 }
 
 // Consume the actual locally built API; never copy AIDL declarations.
@@ -29,4 +37,19 @@ if (!apiAar.isFile()) {
 dependencies {
     implementation files(apiAar)
     implementation 'com.garmin.connectiq:ciq-companion-app-sdk:2.4.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20171018'
+}
+
+// Host-only measurement using the SAME serializer called by ConnectIQ.sendMessage.
+tasks.register('verifySdkSamples', JavaExec) {
+    dependsOn 'testDebugUnitTest'
+    classpath = project.files(project.provider { tasks.named('testDebugUnitTest').get().classpath })
+    mainClass.set('net.osmand.junction.bridge.SdkWireProbe')
+    doFirst {
+        if (!project.hasProperty('junctionSamples') || !project.hasProperty('junctionWireReport')) {
+            throw new GradleException('Provide -PjunctionSamples=<private JSONL> and -PjunctionWireReport=<private report>')
+        }
+        args = [file(project.property('junctionSamples')).absolutePath, file(project.property('junctionWireReport')).absolutePath]
+    }
 }

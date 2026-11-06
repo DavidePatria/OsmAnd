@@ -1,6 +1,6 @@
 # Garmin junction companion — development setup
 
-Authoritative implementation sequence: [plan](../../tasks/plan.md), [task status](../../tasks/todo.md), and [verification record](../../tasks/verification.md). This is an early implementation: the isolated Android baseline and minimal watch display work; navigation export and live companion delivery are still pending.
+Authoritative sequence: [plan](../../tasks/plan.md), [status](../../tasks/todo.md), [verification](../../tasks/verification.md). Geometry, optional export and bridge/watch delivery code now build and pass host/simulator checks. Actual phone progress, permissions, Binder lifecycle and physical Garmin/Bluetooth integration are not verified.
 
 ## Locked source and build inputs
 
@@ -46,6 +46,15 @@ openssl pkcs8 -topk8 -inform PEM -outform DER \
 
 Keep that key stable for subsequent updates. The previous handoff's 2048-bit key compiled but produced simulator `Signature check failed` errors; it was preserved and a valid 4096-bit development key selected privately. Garmin documents the required key size in [Getting Started](https://developer.garmin.com/connect-iq/connect-iq-basics/getting-started/).
 
+Also preserve the bridge's Android debug signing key privately for another
+computer. Its current default is `~/.android/debug.keystore`. Copy the existing
+standard debug keystore to a private path and set `bridge_debug_keystore` in the
+local configuration (or `-PjunctionDebugKeystore=/private/path/key` for Gradle).
+This affects only the bridge; do not overwrite another machine's global key.
+Changing the signing key prevents update-installation over the existing app.
+Never commit keystores or private configuration. The OsmAnd test app retains its
+upstream development signing configuration.
+
 Ubuntu 24.04 lacks the older WebKitGTK ABI linked by this simulator. The previous `/tmp/opencode/wkgtk` workaround disappeared and prevented launch. It was replaced with a persistent, user-local extraction at `~/.cache/osmand-junction/garmin-linux-runtime/root/usr/lib/x86_64-linux-gnu`; private `garmin_library_path` now points there. No system packages were changed. `linux-runtime.lock.json` records official Ubuntu package URLs, versions and SHA-256 for WebKitGTK 4.0, JavaScriptCore 4.0 and ICU 70. To restore on a compatible Linux host: download those three packages, require matching hashes, extract each with `dpkg-deb -x package.deb /chosen/cache/root`, configure the resulting library directory and check `ldd` before launch. Their other runtime dependencies still come from the host. This is a tested host compatibility workaround, not a general SDK installer.
 
 ## Implemented commands
@@ -67,7 +76,85 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s integrations/garmin/te
 
 The first simulator start may require Linux desktop/network access unavailable inside a restricted runner. On this host, sandboxed ADB also cannot open its local server socket. Run the same commands in the authorized host environment; do not substitute a mocked success.
 
-`check --suite protocol|watch` and `run --mode replay` are implemented (below). Other build targets, check suites, `run --mode desk` and `iterate` remain explicitly unimplemented.
+Implemented checks: `protocol|geometry|api|bridge|watch`; implemented watch builds:
+`watch` (legacy echo) and `navigation-watch` (real input). `run --mode replay` and
+`navigation-smoke` work. `all`, `desk` and `iterate` orchestration remain explicitly
+unimplemented; the Android app builds through its verified Gradle task.
+
+## No-phone development checkpoint
+
+```sh
+python3 integrations/garmin/dev.py check --suite geometry --out build/garmin-review/geometry
+python3 integrations/garmin/dev.py check --suite api --out build/garmin-review/api
+python3 integrations/garmin/dev.py check --suite bridge --out build/garmin-review/bridge-tests
+python3 integrations/garmin/dev.py check --suite watch --out build/garmin-review/watch-tests
+python3 integrations/garmin/dev.py build --target navigation-watch --out build/garmin-review/navigation-watch
+python3 integrations/garmin/dev.py run --mode navigation-smoke --out build/garmin-review/navigation-startup
+```
+
+These commands do not access ADB or install apps. Host checks parse actual JUnit
+XML and require nonzero passing counts; watch tests execute in the actual SDK.
+The API tests use pinned test-only Robolectric 4.16.1 on Android API 24/36; 4.17
+pulled a transitive class version unsupported by this project's Jetifier.
+The current totals are 25 JVM + 8 Parcel + 15 bridge + 23 Monkey C checks and 77
+Python checks. Bridge lint has zero errors and three advisory warnings.
+
+The core tests include two small real/native-route inputs from the documented
+PUBLIC baseline under `OsmAnd-java/src/test/resources/junction/`. They verify the
+actual fork and two close right turns without the phone/full OBF/private capture.
+Their original indexes, mode, map/capture hashes and data attribution are recorded
+alongside them. Expected turn/anchor assertions come from native route facts, not
+golden drawings generated by the simplifier. `JunctionWindow` is shared by the
+Android provider and saved-route runner; full/window scene equality is asserted
+for each saved-route run. Regenerate public inputs with the optional
+`-Pjunction.inputFixtures=true` flag only from the public baseline.
+
+Generate scenes with the SAME Java engine/read-only reader used by Android:
+
+```sh
+# With the usual SDK/NDK environment and saved private route/map:
+./gradlew '-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' --max-workers=2 \
+  -I integrations/garmin/road-context.gradle :OsmAnd-java:junctionJavaScenes \
+  -Pjunction.map=build/garmin-review/map-data/Italy_lazio_europe.road.obf \
+  -Pjunction.capture=build/garmin-review/user-route/route.json \
+  -Pjunction.maneuver=3,6,7 -Pjunction.out=build/garmin-review/java-scenes
+python3 integrations/garmin/dev.py run --mode replay \
+  --scene build/garmin-review/java-scenes/scene-3.json --hold \
+  --out build/garmin-review/java-watch-replay
+```
+
+This path bypasses Python geometry conversion. The production provider copies a
+bounded local route window and preserves original native indexes even on long
+routes. Map IO/simplification use one worker, never the routing lock/shared reader.
+The optional snapshot wrapper and live envelope are documented in [contract.md](contract.md).
+The bridge decodes bounded source snapshots and adds API age; the watch checks
+request ID/epoch/deadline and conservatively adds its round trip. Live anticipation
+is currently disabled pending timestamp verification; recorded tests exercise it.
+
+`navigation-smoke` initializes the actual input/renderer, draws the initial state,
+and exits via the SDK with **transport disabled**. This is a startup test, NOT live
+communication evidence. Running the real navigation timer with no phone/ADB peer,
+then terminating the SDK client, stalled the native simulator during testing.
+Do not repeatedly force-kill SDK clients. Use bounded startup tests or recorded
+replay; recover only this task's owned simulator if necessary. The production
+`navigation-watch` variant compiles separately with its transport timer enabled.
+
+The bridge now opens a simple Start/Stop screen, binds only the isolated OsmAnd
+package and selects the single configured Garmin (or offers saved watch choices).
+It has a non-exported `connectedDevice` foreground service, nearby-device runtime
+permission, an ongoing notification/Stop action, and no boot restart. This follows
+the [Android connected-device service prerequisites](https://developer.android.com/develop/background-work/services/fgs/service-types#connected-device).
+Notification denial does not trigger repeated permission requests. The legacy echo
+activity remains available to the explicit echo tools. Do not run echo and live
+SDK clients concurrently. Do not claim screen-off/reconnect behavior until measured.
+
+On the next phone session: update-install the fresh isolated APKs, preserve the
+chosen route, grant the bridge existing OsmAnd connected-app access once, start
+native current-route simulation and start the bridge. Verify fix/progress ages,
+roundabout distance targets, strict expiry and route changes before enabling
+anticipation. An API null result is permission denial OR source error in the legacy
+service; the bridge reports this ambiguity and does not weaken authorization.
+Then verify real SDK payload limits, reconnect and physical Garmin execution.
 
 ## Recorded watch replay and coordinate-linked review
 
@@ -131,9 +218,10 @@ non-motor access while preserving more specific motor-permission overrides,
 tracks/service roads and selected geometry. Refreshed extracts contain access
 tags and `accessTagsVersion:1`; older extracts must be regenerated. Omission
 reasons appear in generated scene provenance. Current filtered examples contain
-24/14/16 paths; 45 Python tests pass. Traffic-light/stop-sign symbols are deferred.
+24/14/16 paths; 65 Python tests now pass. Traffic-light/stop-sign symbols are deferred.
 
-Eleven actual watch tests pass. SDK 9.3.0's `monkeydo -t` returned exit 1 for BOTH
+The initial eleven state tests were extended to seventeen state/envelope tests.
+SDK 9.3.0's `monkeydo -t` returned exit 1 for BOTH
 a known pass and a known intentional failure. The checker therefore requires the
 complete consistent `PASSED (passed=N, failed=0, errors=0)` report and positive
 matching test count; raw exit code is retained. Missing output/crashes fail.
@@ -196,3 +284,116 @@ When invoking Android shell commands containing route URLs, quote for the **remo
 ## Remaining gates
 
 Physical 970 deployment/update, actual Garmin Connect Bluetooth echo, packet-size/rate measurements, background operation and reconnect are unexecuted. Simulator results must not close these acceptance criteria. T03 has one passing real tethered numbered request/reply/draw/ack experiment followed by a failed repeat launch. It is deferred. T06 now has real motorcycle route/branch captures; assess their usability before further watch wiring. Keep all per-task evidence under ignored `build/garmin-review/`, and summarize reviewable facts in tracked `tasks/verification.md`.
+
+
+## Unattended Waydroid desk workflow
+
+Waydroid API 33/x86_64 now runs the actual native OsmAnd route calculation,
+simulation and optional exporter. `desk.py` requires an explicit private config
+and refuses targets whose `ro.product.device` is not Waydroid. It never selects the
+physical phone automatically. Use the separate development app identities only;
+update-install, never uninstall/clear app data. Build its APK with
+`:OsmAnd:assembleAndroidFullOpenglX86Debug` using the SDK/NDK environment above.
+The first native build took 10m18s; later debug-control updates took 22–44s.
+
+One-time Android debugging trust was approved by the user. No Waydroid root/system
+permission change was needed. The standard run-as command fails in this container;
+DUMP-protected DEBUG receivers instead write bounded latest evidence to each test
+app's own external files/junction-desk directory. They are absent from release
+manifests. Personal capture/map/output/config stay under ignored build/ or private
+storage. A fixed debug grant enables only the test bridge's app-info/location group;
+normal phone use still requires the existing OsmAnd connected-app consent.
+
+With the same offline OBF already placed in the test app's data directory:
+
+```sh
+# Explicit Waydroid configuration; do not use the default physical-phone config.
+python3 -B integrations/garmin/desk.py --config <private-waydroid.json> \
+  --out build/garmin-review/desk/prepare prepare --capture <actual-motorcycle-capture.json>
+python3 -B integrations/garmin/desk.py --config <private-waydroid.json> \
+  --out build/garmin-review/desk/grant probe --operation grant_bridge
+python3 -B integrations/garmin/desk.py --config <private-waydroid.json> \
+  --out build/garmin-review/desk/start probe --operation start
+python3 -B integrations/garmin/desk.py --config <private-waydroid.json> \
+  --out build/garmin-review/desk/journey monitor --seconds 480
+python3 -B integrations/garmin/desk.py --config <private-waydroid.json> \
+  --out build/garmin-review/desk/cancel probe --operation cancel
+python3 -B integrations/garmin/review_live.py \
+  --samples build/garmin-review/desk/journey/samples.jsonl \
+  --capture build/garmin-review/desk/prepare/route.json \
+  --out build/garmin-review/desk/review --png
+```
+
+Preparation waits for initialization and a NEW native route identity at progress
+zero. Start waits for following/simulation readiness; restart waits for the existing
+simulator thread's cooperative stop. No routing-engine logic is changed. The normal
+simulation produces fixes around 1.5 s apart; the bridge sampling cadence is 1 Hz.
+The gallery contains ACTUAL bridge-decoded scenes, exact recorded distances and
+coordinate links, with approximate fonts. It rejects unmatched route identities.
+Existing example numbers follow coordinates even if native route indexes shift.
+Layered road context retains gray alternatives with bridge/tunnel drawing order;
+building passages alone do not suppress context. Unavailable/overflow context
+remains explicitly limited. The user approved the gray/yellow style of examples 1–5.
+It does not claim screenshots, complete topology or human correctness approval.
+
+For failure checks, `probe --operation` supports pause/resume, freeze (stop fixes),
+cancel, fixed permission grant/denial and a named synthetic detour. `monitor
+--seconds 45 --lifecycle` schedules pause at 15 s, resume at 20 s and freeze at 30 s.
+`--hz 5` is diagnostic sampling for brief recalculation states, not a promised watch
+refresh rate. The detour feeds synthetic traveled positions into REAL native
+routing; it never constructs route decisions itself. Stop/cancel restore the
+in-memory simulation settings; maps and saved app permissions remain.
+
+Export and replay up to 64 actual packets without replacing distance/ages:
+
+```sh
+python3 -B integrations/garmin/review_live.py --trace-only \
+  --samples build/garmin-review/desk/journey/samples.jsonl \
+  --trace-start 10 --trace-count 20 --out build/garmin-review/desk/trace
+python3 -B integrations/garmin/dev.py run --mode replay \
+  --trace build/garmin-review/desk/trace/actual-trace.json --speed 2 --timeout 40 \
+  --out build/garmin-review/desk/watch-trace
+# Hold the exact first gallery scene, including its actual recorded distance:
+python3 -B integrations/garmin/dev.py run --mode replay \
+  --trace build/garmin-review/desk/review/held-1.json --hold \
+  --out build/garmin-review/desk/watch-held
+python3 -B integrations/garmin/dev.py run --mode capacity-smoke \
+  --out build/garmin-review/desk/capacity
+```
+
+Actual-packet replay runs once and requires normal completion. Held replay freezes
+logical time and is labeled TEST REPLAY / PAUSED; it is not live navigation.
+`capacity-smoke` renders synthetic 40-path/512-point layered input under the NORMAL fr970
+app heap and exits normally. Synthetic capacity drawings are never used as mapped
+junction evidence. Unit-test mode has a different/larger heap.
+
+The bridge's SDK serialization tests use the actual pinned SDK serializer,
+including Unicode, negative replies and maximum geometry/string bounds. To measure
+private captured samples with the same serializer used by sendMessage:
+
+```sh
+./gradlew -p integrations/garmin/bridge verifySdkSamples \
+  -PjunctionSamples=<absolute-private-samples.jsonl> \
+  -PjunctionWireReport=<absolute-private-report.json>
+```
+
+The recorded user's 482 samples round-tripped exactly, maximum 3736 encoded bytes.
+The full 32-path/512-point/four-anchor stress case with distinct full-budget UTF-8
+IDs/metadata encodes to 14577 bytes, below the SDK 2.4.0 send limit of 16384 bytes.
+The new layered 40-path/512-point/four-anchor stress case encodes to 15440 bytes;
+layered path IDs are capped at 24 characters to retain this bound. Ordinary mode
+keeps its 32-path limit and original drawing behavior. See [contract.md](contract.md).
+This proves serialization/size compatibility, not actual wireless transmission.
+
+The normal bridge service can be prepared for a bounded tethered test through the
+fixed DEBUG-only `probe --bridge --operation start_tethered` hook; stop with
+`stop_tethered`. Launch its normal activity and grant its ordinary permissions
+first. Forward only the explicit Waydroid target with --no-rebind. Do not replace
+another device's forwarding. The current SDK peer reports NOT_CONNECTED; recorded
+watch replay is the verified path. Its native menu start is not automated by these
+commands. Do not repeatedly force-kill live SDK clients or claim a live link.
+
+Live delivery now uses JC1 lossless SDK byte arrays; the logical contract stays
+unchanged. See [wire.md](wire.md) for the exact format, the measured cause of live
+expiry/blinking, compatibility and alternatives. Full packet size alone is not a
+latency pass. Keep the SDK connection established before sending watch requests.

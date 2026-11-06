@@ -16,6 +16,28 @@ sys.dont_write_bytecode = True
 from replay_scene import recorded
 
 
+def road_strokes(scene):
+    """Same level/color/casing order as JunctionRenderer; geometry is unchanged."""
+    paths=scene['paths'];selected=next((p for p in paths if p['role']=='selected'),None)
+    if scene['geometryMode']!='layer_context':
+        for p in paths:
+            if p['role']!='selected':yield p['points'],'#8193a6',4
+        if selected:
+            yield selected['points'],'black',13;yield selected['points'],'#ffd166',7
+        return
+    levels={p['layer'] for p in paths if p['role']!='selected'}
+    levels.update(selected['segmentLayers'])
+    for level in sorted(levels):
+        context=[p for p in paths if p['role']!='selected' and p['layer']==level]
+        if level>min(levels):
+            for p in context:yield p['points'],'black',10
+        for p in context:yield p['points'],'#8193a6',4
+        if selected:
+            for color,width in [('black',13),('#ffd166',7)]:
+                for i,value in enumerate(selected['segmentLayers']):
+                    if value==level:yield selected['points'][i:i+2],color,width
+
+
 def watch_svg(scene):
     parts=['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 454 454" width="454" height="454">',
            '<defs><clipPath id="face"><circle cx="227" cy="227" r="226"/></clipPath><clipPath id="roads"><rect x="25" y="102" width="404" height="270"/></clipPath></defs>',
@@ -29,16 +51,14 @@ def watch_svg(scene):
     def line(path,color,width):
         points=' '.join(f'{x:.3f},{y:.3f}' for x,y in map(xy,path['points']))
         parts.append(f'<polyline points="{points}" stroke="{color}" stroke-width="{width}" fill="none"/>')
-    for path in scene['paths']:
-        if path['role']!='selected':line(path,'#8193a6',4)
-    for path in scene['paths']:
-        if path['role']=='selected':line(path,'black',13);line(path,'#ffd166',7)
+    for points,color,width in road_strokes(scene):line({'points':points},color,width)
     for i,anchor in enumerate(scene['anchors']):
         x,y=xy(anchor['point']);parts.append(f'<circle cx="{x}" cy="{y}" r="6" fill="black" stroke="#ffd166" stroke-width="2"/>')
         text(x+10,y-23,str(i+1),20,anchor='start')
     parts.append('</g>')
     text(227,382,scene['roadName'][:25],20)
-    text(227,414,'MOTOR ROADS' if scene['geometryMode']=='map_context' else 'PARTIAL ROADS',20,'#8ca5bf')
+    detail='MOTOR ROADS' if scene['geometryMode'] in ('map_context','layer_context') else 'ROUTE ONLY' if scene['geometryMode']=='route_only' else 'PARTIAL ROADS'
+    text(227,414,detail,20,'#8ca5bf')
     parts.append('</g></svg>')
     return ''.join(parts)
 
@@ -57,16 +77,14 @@ def png(scene, path):
     scale=454*.33/scene['radiusDm']
     def xy(p):return (227+p[0]*scale)*factor,(454*.54-p[1]*scale)*factor
     def line(p,color,width):roads.line([xy(q) for q in p['points']],fill=color,width=width*factor)
-    for p in scene['paths']:
-        if p['role']!='selected':line(p,'#8193a6',4)
-    for p in scene['paths']:
-        if p['role']=='selected':line(p,'black',13);line(p,'#ffd166',7)
+    for points,color,width in road_strokes(scene):line({'points':points},color,width)
     image.paste(layer.crop((25*factor,102*factor,429*factor,372*factor)),(25*factor,102*factor))
     for i,a in enumerate(scene['anchors']):
         x,y=xy(a['point']);r=6*factor
         draw.ellipse((x-r,y-r,x+r,y+r),fill='black',outline='#ffd166',width=2*factor)
         text(x/factor+10,y/factor-23,str(i+1),20,anchor='lt')
-    text(227,382,scene['roadName'][:25]);text(227,414,'MOTOR ROADS' if scene['geometryMode']=='map_context' else 'PARTIAL ROADS',20,'#8ca5bf')
+    detail='MOTOR ROADS' if scene['geometryMode'] in ('map_context','layer_context') else 'ROUTE ONLY' if scene['geometryMode']=='route_only' else 'PARTIAL ROADS'
+    text(227,382,scene['roadName'][:25]);text(227,414,detail,20,'#8ca5bf')
     mask=Image.new('L',(size,size));ImageDraw.Draw(mask).ellipse((factor,factor,size-factor,size-factor),fill=255)
     face=Image.new('RGB',(size,size),'#171c25');face.paste(image,(0,0),mask)
     face.resize((454,454),Image.Resampling.LANCZOS).save(path)

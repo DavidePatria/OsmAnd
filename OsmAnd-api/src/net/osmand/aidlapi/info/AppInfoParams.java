@@ -17,6 +17,7 @@ public class AppInfoParams extends AidlParams {
 
 	private Bundle turnInfo;
 	private Bundle versionsInfo;
+	private Bundle navigationSnapshot;
 	private int leftTime;
 	private int leftDistance;
 	private long arrivalTime;
@@ -93,6 +94,15 @@ public class AppInfoParams extends AidlParams {
 		return versionsInfo;
 	}
 
+	/** Optional v1 companion snapshot; absent for old/unsupported exporters. */
+	public Bundle getNavigationSnapshot() {
+		return navigationSnapshot == null ? null : new Bundle(navigationSnapshot);
+	}
+
+	public void setNavigationSnapshot(Bundle snapshot) {
+		navigationSnapshot = snapshot == null ? null : new Bundle(snapshot);
+	}
+
 	public void setVersionsInfo(Bundle versionsInfo) {
 		this.versionsInfo = versionsInfo;
 	}
@@ -129,6 +139,9 @@ public class AppInfoParams extends AidlParams {
 		bundle.putInt("leftDistance", leftDistance);
 		bundle.putBundle("turnInfo", turnInfo);
 		bundle.putBundle("versionsInfo", versionsInfo);
+		if (navigationSnapshot != null) {
+			bundle.putBundle("navigationSnapshot", navigationSnapshot);
+		}
 		bundle.putBoolean("mapVisible", mapVisible);
 		bundle.putString("osmAndVersion", osmAndVersion);
 		bundle.putString("releaseDate", releaseDate);
@@ -145,6 +158,7 @@ public class AppInfoParams extends AidlParams {
 		leftDistance = bundle.getInt("leftDistance");
 		turnInfo = bundle.getBundle("turnInfo");
 		versionsInfo = bundle.getBundle("versionsInfo");
+		navigationSnapshot = bundle.getBundle("navigationSnapshot");
 		mapVisible = bundle.getBoolean("mapVisible");
 		osmAndVersion = bundle.getString("osmAndVersion");
 		releaseDate = bundle.getString("releaseDate");

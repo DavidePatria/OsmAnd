@@ -4,6 +4,18 @@ Status: implementation in progress. Android baseline builds, phone offline route
 
 ## 1. Objective and user instructions
 
+### Offline continuation authorized after visual approval
+
+The user approved the filtered examples, committed checkpoint `0c6b7f8`, and
+authorized continuing all useful work without the phone. Do not use ADB or
+replace the selected route. Work in dependency order: (1) Java geometry + bounded
+existing-OBF reader, saved-route comparison and actual watch replay; (2) coherent
+snapshot/cache and optional compatible API export, build/host checks; (3) bounded
+delivery/request logic and simulator tests. Reuse existing T04/T07/T08/T09 criteria.
+Hardware-only installation, GPS/progress cadence, Binder/device lifecycle and
+Bluetooth evidence stay open. Do not add traffic-control symbols. Keep each
+checkpoint independently reviewable and update evidence before continuing.
+
 OsmAnd navigates on an Android phone, using its built-in calculated routes and downloaded maps. A standalone Connect IQ app on a Forerunner 970 shows a compact upcoming-junction sketch with the chosen route highlighted. It must distinguish common forks and closely spaced turns better than a generic arrow.
 
 User clarification: the watch shows a STABLE next-junction layout with all recognizable mapped road arms and ONLY the selected route yellow. No moving map or rider marker is required. Distance updates once per second from route-matched phone progress; small optional anticipation compensates known sample delay, bounded initially at one second. OsmAnd alone changes the next junction. Fresh GPS/progress cadence and end-to-end latency must be measured, not inferred from the display refresh rate. Review examples should pair watch-layout previews with coordinate links; the user opens the map to compare. Respect user-selected endpoints on the phone.
@@ -115,13 +127,13 @@ Use a local metric scene centered on the maneuver cluster. Orient the phone-gene
 
 Initial configurable bounds: at most 8 paths, 24 points per path and 96 points total, normally within a 200 m radius. These are engineering bounds, not Garmin capacity guarantees or a mandatory zoom level. Start with a 1 m simplification tolerance while retaining decision anchors. Keep selected-route points and junction nodes before decorative shape points. If bounds would hide a relevant branch, overflow or merge distinct junctions, return a limited view rather than silently dropping the information. Bounds/tolerance may be revised only with fixture evidence.
 
-Extract the selected approach/departure from the calculated route. Deduplicate by connectivity/road direction and sampled geometry; do not merge roads just because their bearings are close. Preserve adjacent junction anchors and shared road vertices. Treat disconnected crossings as disconnected. Attached and pre-attached routing roads may be filtered and cannot prove the full recognizable layout. Following the user's full-layout clarification, a bounded local read-only query of the EXISTING OBF using OsmAnd's own reader is permitted. The current desktop diagnostic queries a 400 m box and clips to a 75 m display circle (80 m scale). No second map database, native-routing modification or unbounded query is introduced. Context lines have no claimed anchor connectivity. Grade-separated scenes currently fall back explicitly to route-only; this is an unresolved acceptance gap.
+Extract the selected approach/departure from the calculated route. Deduplicate by connectivity/road direction and sampled geometry; do not merge roads just because their bearings are close. Preserve adjacent junction anchors and shared road vertices. Treat disconnected crossings as disconnected. Attached and pre-attached routing roads may be filtered and cannot prove the full recognizable layout. Following the user's full-layout clarification, a bounded local read-only query of the EXISTING OBF using OsmAnd's own reader is permitted. The current desktop diagnostic queries a 400 m box and clips to a 75 m display circle (80 m scale). No second map database, native-routing modification or unbounded query is introduced. Context lines have no claimed anchor connectivity. The level-aware context mode now draws bridges/tunnels in order without dropping gray alternatives; building passages alone do not suppress context. Unsupported metadata and true overflow still return an explicit limited view.
 
 The full-layout requirement includes recognizable roundabout shape and visible approaches/exits where available in the map. The earlier exemption for an all-exit diagram is superseded by the user's clarification. Missing roads, unreadable geometry or unsupported grade separation must be explicit; a generic symbol or selected-route-only view does not satisfy this gate.
 
 Subsequent visual feedback explicitly permits filtering out non-motor footpaths/cycleways, which solid gray strokes made misleading. Apply highway/access hierarchy defaults with motor-permission overrides, preserve ordinary tracks/service roads and the calculated yellow route, and keep an omission audit. Do not filter solely from dashed map styling or claim country-specific legal access. Traffic-light landmarks and approach-specific stop signs are possible later additions; the user explicitly deferred implementation of both.
 
-Measured context scenes contain 29–30 paths and 88–113 points. The draft `map_context` budget is therefore 32 paths, 48 points/path and 512 points total; legacy routing-branch scenes retain 8/24/96. These are bounded prototype limits, NOT a measured transport capacity. Capacity overflow clears competing context and marks the scene limited; never silently drop road arms to fit. Full encoded payload/heap limits still need T03/T16 measurement.
+Measured context scenes contain 29–30 paths and 88–113 points. The draft `map_context` budget is therefore 32 paths, 48 points/path and 512 points total; legacy routing-branch scenes retain 8/24/96. These remain bounded prototype limits, not certified physical Bluetooth capacity. Capacity overflow clears competing context and marks the scene limited; never silently drop road arms to fit. SDK serialization and normal-app 40-path/512-point rendering now have measured evidence. Layered context permits 40 paths with shorter 24-character path IDs; ordinary mode stays at 32. See the implemented contract and latest verification checkpoint.
 
 ### Bridge-to-watch delivery
 
@@ -270,3 +282,26 @@ Reference facts are in [research/FEASIBILITY.md](research/FEASIBILITY.md) and [r
 ## 11. Planning-document verification
 
 The author checked that all 18 tasks T00–T17 exist; each has three acceptance criteria, dependencies, verification and a named verifiable output; all dependency IDs resolve and the graph is acyclic. Local Markdown links, code fences and trailing whitespace were checked. Git whitespace checks are part of final staging verification. These are document checks only. No proposed development command, application build, simulator session or device scenario has run.
+
+
+## 13. Unattended Waydroid validation (2026-11-06)
+
+The user authorized autonomous map setup, navigation simulation, live export tests
+and additional coordinate-linked junction previews, minimizing physical-only work.
+Execute T11's desk-control subset before physical T10: debug/DUMP-only current-route
+simulation and actual cross-process API sampling; no routing-engine changes.
+Verify map/profile and saved endpoints; sample at 1 Hz and keep actual fix cadence
+separate. Exercise pause/resume, stopped fixes, restart/permission loss and source
+recovery. Then replay ACTUAL exported scenes in Garmin's simulator and leave a
+labeled review gallery. Live Garmin transport remains a separate bounded test;
+Bluetooth and physical-watch readability cannot be inferred from a desk pass.
+All raw captures, coordinates and generated outputs stay under ignored build/.
+
+## Live simulator transport refinement (2026-11-06)
+
+Actual SDK integration exposed its tethered 600-byte/second sleep model. Full
+nested scene dictionaries missed the three-second reply deadline. JC1 lossless
+encoding now adapts only the SDK boundary; it preserves the logical API/envelope
+and all freshness rules. See integrations/garmin/wire.md for byte format, evidence,
+alternatives and unresolved maximum-scene throughput/replay-memory limits. The
+user explicitly requires a connected demo and documentation of workarounds.

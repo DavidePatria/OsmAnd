@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "kind": "junction_snapshot",
+  "epoch": "example-watch-epoch",
+  "requestId": 1,
+  "scene": {
+    "version": 1,
+    "session": "replay-0a58cf1db4cbec15",
+    "generation": 1,
+    "seq": 1,
+    "state": "active",
+    "geometryMode": "routing_branches",
+    "reason": "routing data may omit roads",
+    "distanceM": 120,
+    "roadName": "Viale Giacomo Matteotti",
+    "maneuver": "TSLL",
+    "radiusDm": 2000,
+    "sourceAgeMs": 0,
+    "fixAgeMs": 0,
+    "anchors": [
+      {
+        "id": "j0",
+        "point": [
+          0,
+          0
+        ],
+        "routeIndex": 219
+      }
+    ],
+    "paths": [
+      {
+        "id": "selected",
+        "role": "selected",
+        "points": [
+          [
+            137,
+            -1397
+          ],
+          [
+            -86,
+            -978
+          ],
+          [
+            -141,
+            -846
+          ],
+          [
+            -160,
+            -741
+          ],
+          [
+            -146,
+            -660
+          ],
+          [
+            -26,
+            -565
+          ],
+          [
+            2,
+            -522
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            -31,
+            67
+          ],
+          [
+            -78,
+            119
+          ],
+          [
+            -171,
+            167
+          ],
+          [
+            -451,
+            496
+          ],
+          [
+            -631,
+            629
+          ],
+          [
+            -739,
+            666
+          ],
+          [
+            -920,
+            692
+          ],
+          [
+            -1121,
+            703
+          ],
+          [
+            -1566,
+            688
+          ],
+          [
+            -1645,
+            709
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            7
+          ]
+        ]
+      },
+      {
+        "id": "b0",
+        "role": "branch",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            -39,
+            295
+          ]
+        ],
+        "anchorRefs": [
+          [
+            "j0",
+            0
+          ]
+        ]
+      }
+    ]
+  }
+}

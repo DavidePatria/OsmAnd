@@ -25,4 +25,18 @@ gradle.projectsEvaluated {
             }
         }
     }
+    core.tasks.register('junctionJavaScenes', JavaExec) {
+        dependsOn core.tasks.named('compileJunctionRoadContext')
+        classpath = core.files(classes) + core.sourceSets.main.runtimeClasspath
+        mainClass.set('junction.JunctionCaptureRunner')
+        maxHeapSize = '1g'
+        doFirst {
+            args = ['junction.map', 'junction.capture', 'junction.maneuver', 'junction.out'].collect {
+                def value = core.findProperty(it)
+                if (value == null) throw new GradleException('Missing -P' + it + '=...')
+                it == 'junction.maneuver' ? value.toString() : gradle.rootProject.file(value.toString()).absolutePath
+            }
+            if (core.findProperty('junction.inputFixtures') == 'true') args += ['--input-fixtures']
+        }
+    }
 }

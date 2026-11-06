@@ -1,5 +1,6 @@
 import Toybox.Lang;
 import Toybox.Test;
+import Toybox.System;
 
 function testScene() as Dictionary {
     return {"version"=>1,"session"=>"test","generation"=>1,"seq"=>1,"state"=>"active","geometryMode"=>"routing_branches",
@@ -77,5 +78,45 @@ function contextBudgetAndNoInventedConnectivity(logger as Test.Logger) as Boolea
     s["paths"][1]["anchorRefs"]=[["a",0]];
     if (SceneDecoder.decode(s)!=null) { return false; }
     s["paths"][1]["anchorRefs"]=[];s["geometryMode"]="routing_branches";
+    return SceneDecoder.decode(s)==null;
+}
+
+(:test)
+function maximumFullContextBudgetOwns512PointsAndRejects513(logger as Test.Logger) as Boolean {
+    // Synthetic capacity input only; never presented as an extracted junction.
+    var s=testScene();s["geometryMode"]="map_context";s["paths"]=[];
+    for (var i=0;i<32;i+=1) {
+        var points=[];
+        for (var j=0;j<16;j+=1) { points.add([j*10,i]); }
+        s["paths"].add({"id"=>"p"+i,"role"=>(i==0?"selected":"context"),
+            "points"=>points,"anchorRefs"=>(i==0?[["a",0]]:[])});
+    }
+    var state=new NavigationState();
+    if (!state.accept(s,0) || state.scene()["paths"].size()!=32) { return false; }
+    s["paths"][0]["points"][0][0]=777;
+    if (state.scene()["paths"][0]["points"][0][0]!=0) { return false; }
+    s["paths"][0]["points"][0][0]=0;
+    var memory=System.getSystemStats();
+    System.println("JUNCTION_CAPACITY points=512 used="+memory.usedMemory+" free="+memory.freeMemory);
+    s["paths"][31]["points"].add([160,31]);
+    return SceneDecoder.decode(s)==null;
+}
+
+(:test)
+function layeredContextOwnsItsDrawingLevels(logger as Test.Logger) as Boolean {
+    var s=testScene();s["geometryMode"]="layer_context";
+    s["paths"][0]["layer"]=0;s["paths"][0]["segmentLayers"]=[0,1];
+    var state=new NavigationState();
+    if (!state.accept(s,0)) { return false; }
+    s["paths"][0]["segmentLayers"][0]=9;
+    return state.scene()["paths"][0]["segmentLayers"][0]==0;
+}
+(:test)
+function incompleteOrLegacyLayerMetadataIsRejected(logger as Test.Logger) as Boolean {
+    var s=testScene();s["paths"][0]["layer"]=0;
+    if (SceneDecoder.decode(s)!=null) { return false; }
+    s["geometryMode"]="layer_context";s["paths"][0]["segmentLayers"]=[0];
+    if (SceneDecoder.decode(s)!=null) { return false; }
+    s["paths"][0]["segmentLayers"]=[0,1.0];
     return SceneDecoder.decode(s)==null;
 }

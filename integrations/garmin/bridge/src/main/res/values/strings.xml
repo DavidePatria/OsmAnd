@@ -1,4 +1,17 @@
 <resources>
-    <string name="app_name">Junction Bridge Test</string>
+    <string name="app_name">Junction Companion</string>
+    <string name="navigation_explanation">Keep OsmAnd navigating on the phone and open Junction on your Garmin. Start the connection here; you can stop it at any time.</string>
+    <string name="navigation_start">Start connection</string>
+    <string name="navigation_stop">Stop connection</string>
+    <string name="navigation_stopped">Connection stopped</string>
+    <string name="navigation_starting">Starting connection…</string>
+    <string name="navigation_permission">Allow nearby-device access to connect the watch.</string>
+    <string name="navigation_channel">Watch navigation connection</string>
+    <string name="navigation_waiting_watch">Waiting for the Garmin app</string>
+    <string name="navigation_waiting_osmand">Waiting for OsmAnd navigation and access permission</string>
+    <string name="navigation_garmin_unavailable">Check that Garmin Connect is available</string>
+    <string name="navigation_choose_watch">Choose your Garmin below, or pair it in Garmin Connect</string>
+    <string name="navigation_watch">Garmin watch</string>
+    <string name="navigation_running">Navigation updates are being sent</string>
     <string name="echo_status">TEST — %1$s\n\n%2$s</string>
 </resources>

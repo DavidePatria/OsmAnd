@@ -3,7 +3,7 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.WatchUi;
 
-const JUNCTION_BUILD_ID = "T05-2";
+const JUNCTION_BUILD_ID = "T09-1";
 
 //! Shared scene state and renderer, with build-selected replay or echo input.
 class JunctionApp extends Application.AppBase {

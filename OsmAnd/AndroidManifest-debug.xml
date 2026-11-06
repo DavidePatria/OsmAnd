@@ -8,5 +8,7 @@
                     tools:replace="android:authorities" />
           <receiver android:name="net.osmand.plus.routing.companion.DebugRouteProbeReceiver"
                     android:exported="true" android:permission="android.permission.DUMP" />
+          <receiver android:name="net.osmand.plus.routing.companion.DebugJunctionDeskReceiver"
+                    android:exported="true" android:permission="android.permission.DUMP" />
      </application>
 </manifest> 

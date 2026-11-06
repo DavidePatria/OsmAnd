@@ -3,6 +3,7 @@ import Toybox.System;
 import Toybox.Timer;
 import Toybox.WatchUi;
 const REPLAY_MODE = true;
+const NAVIGATION_MODE = false;
 function createInput(app as JunctionApp) as InputAdapter { return new ReplayInput(app.nav); }
 
 class ReplayInput extends InputAdapter {
@@ -34,7 +35,8 @@ class ReplayInput extends InputAdapter {
     function stop() as Void { _timer.stop(); }
     function tick() as Void {
         var elapsed=now();
-        if (elapsed>=26000) {
+        if (elapsed>=ReplayFixtures.duration()) {
+            if (ReplayFixtures.once()) { System.println("JUNCTION_REPLAY_COMPLETE");System.exit();return; }
             _offset=0;_started=System.getTimer();_index=-1;elapsed=0;
         }
         while (_index+1<_frames.size() && _frames[_index+1]["atMs"]<=elapsed) {
@@ -45,7 +47,7 @@ class ReplayInput extends InputAdapter {
     private function applyFrame(elapsed as Number) as Void {
         var packet=_frames[_index]["scene"];
         if (packet!=null) {
-            _sequence+=1;packet["seq"]=_sequence;
+            if (!ReplayFixtures.once()) { _sequence+=1;packet["seq"]=_sequence; }
             if (!_state.accept(packet,elapsed)) { System.println("JUNCTION_REPLAY_REJECT frame="+_index); }
         }
     }

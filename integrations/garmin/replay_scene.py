@@ -64,7 +64,9 @@ def compile_scene(capture, maneuver, source_sha, radius_m=195):
     if errors: raise ValueError('; '.join(errors))
     if capture['status'] != 'captured': raise ValueError('truncated raw capture cannot establish branch coverage')
     locations, refs = capture['locationsLatLon'], capture['locationSegmentIds']
-    directions = capture['directions']; direction = directions[maneuver]
+    directions = capture['directions']
+    if type(maneuver) is not int or not 0 <= maneuver < len(directions):raise ValueError('original maneuver index out of range')
+    direction = directions[maneuver]
     cumulative,offset,project=route_frame(capture,maneuver)
     indexes = [offset]
     if maneuver+1 < len(directions):
@@ -234,7 +236,7 @@ def recorded(capture_path, maneuver, context_path=None):
     capture=json.loads(raw);scene=compile_scene(capture,maneuver,sha,75 if context_path else 195)
     result={'provenance':{'kind':'actual_osmand_capture','captureSha256':sha,'applicationMode':capture['applicationMode'],
                           'maneuverIndex':maneuver,'routePointOffset':capture['directions'][maneuver]['routePointOffset'],
-                          'conversion':'diagnostic projection/simplification; production Java geometry pending'},'scene':scene}
+                          'conversion':'diagnostic Python projection/simplification; production uses JunctionCompiler'},'scene':scene}
     if context_path:
         context_raw=Path(context_path).read_bytes();context=json.loads(context_raw)
         if (context.get('version')!=1 or context.get('kind')!='same_obf_unfiltered_routing_roads'

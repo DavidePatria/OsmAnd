@@ -1,5 +1,6 @@
 import Toybox.Lang;
 const REPLAY_MODE = false;
+const NAVIGATION_MODE = false;
 function createInput(app as JunctionApp) as InputAdapter { return new EchoInput(app.echo); }
 class EchoInput extends InputAdapter {
     private var _echo as EchoClient;

@@ -83,6 +83,14 @@ class DebugRouteProbeReceiver : BroadcastReceiver() {
         val temporary = directory.resolve("latest.tmp")
         temporary.writeText(capture.toString())
         check(temporary.renameTo(directory.resolve("latest.json")))
+        // Shell-readable, app-scoped DEBUG evidence also works in Waydroid where
+        // run-as cannot switch supplementary groups. Never change system privileges.
+        app.getExternalFilesDir("junction-desk")?.let { external ->
+            external.mkdirs()
+            val copy = external.resolve("route.tmp")
+            copy.writeText(capture.toString())
+            check(copy.renameTo(external.resolve("route.json")))
+        }
         LOG.info("JUNCTION_PROBE request=$request status=${capture.optString("status")}")
     }
 
@@ -166,7 +174,7 @@ class DebugRouteProbeReceiver : BroadcastReceiver() {
                 .put("segments", segments).put("directions", directions)
                 .put("limitations", JSONArray().put("routing attachments may omit filtered or cleared roads")
                     .put("shared coordinates alone do not establish connectivity")
-                    .put("capture is diagnostic; lifecycle-safe production exporter is not implemented"))
+                    .put("capture is diagnostic; live exporter is verified separately"))
         }
 
         private fun branches(list: List<RouteSegmentResult>?): JSONArray {

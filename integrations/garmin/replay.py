@@ -10,6 +10,18 @@ import time
 from protocol.scene import validate
 
 
+def load_recorded_scene(path):
+    value=json.loads(Path(path).read_text())
+    if not isinstance(value,dict) or not isinstance(value.get('provenance'),dict):raise ValueError('recorded scene needs provenance')
+    provenance=value['provenance'];digest=provenance.get('captureSha256')
+    if (provenance.get('kind')!='actual_osmand_capture' or not isinstance(digest,str)
+        or len(digest)!=64 or any(c not in '0123456789abcdef' for c in digest.lower())):
+        raise ValueError('recorded scene needs supported capture provenance and SHA-256')
+    errors=validate(value.get('scene'))
+    if errors:raise ValueError('; '.join(errors))
+    return value
+
+
 def watch_test_result(text, code, minimum=1):
     """SDK 9.3.0 on this host exits 1 for BOTH pass and fail (calibrated).
 
@@ -58,13 +70,34 @@ def monkey(value):
     raise ValueError('unsupported fixture value')
 
 
-def generate(recorded, directory, watch, speed, scenario, hold=False):
+def load_trace(path):
+    value=json.loads(Path(path).read_text())
+    provenance=value.get('provenance',{})
+    digest=provenance.get('captureSha256')
+    if (provenance.get('kind')!='actual_osmand_capture' or not isinstance(digest,str)
+        or len(digest)!=64 or any(c not in '0123456789abcdef' for c in digest.lower())):
+        raise ValueError('trace needs actual capture provenance')
+    entries=value.get('frames')
+    if not isinstance(entries,list) or not 1<=len(entries)<=64:raise ValueError('trace frame bound is 1..64')
+    previous=-1
+    for frame in entries:
+        if not isinstance(frame,dict) or type(frame.get('atMs')) is not int or not previous<frame['atMs']<=300_000:
+            raise ValueError('trace times must strictly increase within five minutes')
+        previous=frame['atMs']
+        if validate(frame.get('scene')):raise ValueError('invalid actual trace scene')
+    if entries[0]['atMs']!=0:raise ValueError('trace must begin at zero')
+    return {'provenance':provenance,'scene':entries[0]['scene']},entries
+
+
+def generate(recorded, directory, watch, speed, scenario, hold=False, trace_frames=None):
     directory.mkdir(parents=True,exist_ok=True)
-    frame_list=frames(recorded)
+    frame_list=frames(recorded) if trace_frames is None else trace_frames
     source='import Toybox.Lang;\nmodule ReplayFixtures {\n'
     source+='function frames() as Array<Dictionary> { return '+monkey(frame_list)+'; }\n'
     source+='function speed() as Float { return '+str(float(speed))+'; }\n'
     source+='function hold() as Boolean { return '+monkey(hold)+'; }\n'
+    source+='function once() as Boolean { return '+monkey(trace_frames is not None)+'; }\n'
+    source+='function duration() as Number { return '+str(frame_list[-1]['atMs']+1000)+'; }\n'
     source+='function scenario() as String { return '+monkey(scenario)+'; }\n'
     source+='function sourceHash() as String { return '+monkey(recorded['provenance']['captureSha256'])+'; }\n}\n'
     (directory/'ReplayFixtures.mc').write_text(source)
@@ -75,19 +108,49 @@ def generate(recorded, directory, watch, speed, scenario, hold=False):
     return jungle
 
 
-def run_replay(dev,cfg,out_dir,scenario,speed,timeout,capture=None,maneuver=None,hold=False,context=None):
+def ensure_simulator(cfg,out_dir):
+    sdk=Path(cfg.get('garmin_sdk') or os.environ['GARMIN_SDK_HOME']).expanduser()
+    env=os.environ.copy()
+    if cfg.get('garmin_library_path'):env['LD_LIBRARY_PATH']=str(Path(cfg['garmin_library_path']).expanduser())+os.pathsep+env.get('LD_LIBRARY_PATH','')
+    try:
+        with socket.create_connection(('127.0.0.1',1234),timeout=1):return sdk,env,{'simulator':'reused_listener'}
+    except ConnectionRefusedError:pass
+    with (out_dir/'simulator.log').open('wb') as log:
+        process=subprocess.Popen([str(sdk/'bin/simulator')],stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
+    deadline=time.monotonic()+20
+    while True:
+        if process.poll() is not None:raise RuntimeError('simulator exited; inspect simulator.log')
+        try:
+            with socket.create_connection(('127.0.0.1',1234),timeout=1):return sdk,env,{'simulator':'started','simulator_pid':process.pid}
+        except ConnectionRefusedError:
+            if time.monotonic()>deadline:raise RuntimeError('simulator did not open its SDK port')
+            time.sleep(.1)
+
+
+def run_replay(dev,cfg,out_dir,scenario,speed,timeout,capture=None,maneuver=None,hold=False,context=None,scene_path=None,trace_path=None):
     out_dir.mkdir(parents=True,exist_ok=True)
     report={'mode':'replay','status':'fail','scenario':scenario,'speed':speed,'physical_watch':'not_tested','visual_confirmation':'not_checked'}
+    (out_dir/'run.json').write_text(json.dumps(report,indent=2)+'\n')
     client=None
     try:
-        if capture:
+        trace_frames=None
+        if trace_path:
+            if capture or context or scene_path:raise ValueError('--trace is exclusive of capture/context/scene')
+            value,trace_frames=load_trace(trace_path)
+            scenario='actual-android-trace';report.update(scenario=scenario,input_kind='actual Android snapshots; no synthetic distance/progress',trace_sha256=dev.sha256(trace_path))
+        elif scene_path:
+            if capture or context:raise ValueError('--scene cannot be combined with --capture/--context')
+            value=load_recorded_scene(scene_path)
+            scenario='recorded-java-maneuver-'+str(value['provenance'].get('maneuverIndex','unknown'))
+            report['scenario']=scenario
+        elif capture:
             from replay_scene import recorded
             value=recorded(capture,maneuver if maneuver is not None else (10 if scenario=='fork' else 5),context)
         elif context:raise ValueError('--context requires --capture and its original maneuver index')
         else:
             value=json.loads((dev.TOOL_DIR/'fixtures/recorded'/f'{scenario}.json').read_text())
         (out_dir/'recorded-scene.json').write_text(json.dumps(value,indent=2)+'\n')
-        jungle=generate(value,out_dir.resolve()/'generated',dev.TOOL_DIR/'watch',speed,scenario,hold)
+        jungle=generate(value,out_dir.resolve()/'generated',dev.TOOL_DIR/'watch',speed,scenario,hold,trace_frames)
         if dev.build_watch(cfg,out_dir/'build',jungle=jungle):raise RuntimeError('actual watch compilation failed')
         build=json.loads((out_dir/'build/build.json').read_text());sdk=Path(cfg.get('garmin_sdk') or os.environ['GARMIN_SDK_HOME']).expanduser()
         env=os.environ.copy()
@@ -116,13 +179,18 @@ def run_replay(dev,cfg,out_dir,scenario,speed,timeout,capture=None,maneuver=None
         while time.monotonic()<deadline:
             text=(out_dir/'runtime.log').read_text(errors='replace')
             if 'JUNCTION_REPLAY_REJECT' in text:raise RuntimeError('shared decoder rejected replay input')
-            if 'JUNCTION_DRAW' in text and 'state=active' in text:
+            if trace_frames is not None and not hold:
+                if client.poll() is not None:
+                    if client.returncode!=0 or 'JUNCTION_REPLAY_COMPLETE' not in text:raise RuntimeError('actual trace did not exit normally after completion')
+                    report.update(status='pass',evidence='actual Android trace completed in watch decoder/renderer',client_retained=False)
+                    break
+            elif 'JUNCTION_DRAW' in text and 'state=active' in text:
                 report.update(status='pass',evidence='actual app drew captured scene',client_retained=True)
                 break
-            if client.poll() is not None:raise RuntimeError('deployment exited before the captured scene drew')
+            if (trace_frames is None or hold) and client.poll() is not None:raise RuntimeError('deployment exited before the captured scene drew')
             time.sleep(.1)
         else:raise RuntimeError('no captured-scene draw before deadline')
-    except (OSError,ValueError,RuntimeError) as error:report['reason']=str(error)
+    except (OSError,ValueError,RuntimeError,KeyError,TypeError) as error:report['reason']=str(error)
     if report['status']!='pass' and client is not None and client.poll() is None:
         try:os.killpg(client.pid,signal.SIGTERM);client.wait(timeout=5)
         except subprocess.TimeoutExpired:os.killpg(client.pid,signal.SIGKILL);client.wait()
@@ -136,13 +204,13 @@ def check_protocol(dev,out_dir):
     import re
     out_dir.mkdir(parents=True,exist_ok=True)
     env=os.environ.copy();env['PYTHONDONTWRITEBYTECODE']='1'
-    result=subprocess.run([dev.sys.executable,'-m','unittest','discover','-s',str(dev.TOOL_DIR/'tests'),'-p','test_scene.py','-v'],
+    result=subprocess.run([dev.sys.executable,'-m','unittest','discover','-s',str(dev.TOOL_DIR/'tests'),'-p','test_scene*.py','-v'],
                           cwd=dev.REPO_ROOT,env=env,capture_output=True,text=True,timeout=60)
     text=result.stdout+result.stderr;(out_dir/'tests.log').write_text(text)
     count=re.search(r'Ran (\d+) tests?',text)
     ok=result.returncode==0 and count is not None and int(count.group(1))>0
-    report={'suite':'scene-contract-and-diagnostic-conversion','status':'pass' if ok else 'fail','tests':int(count.group(1)) if count else 0,
-            'scope':'scene only; live request/epoch envelope and production Java geometry remain pending'}
+    report={'suite':'scene-and-envelope-contracts','status':'pass' if ok else 'fail','tests':int(count.group(1)) if count else 0,
+            'scope':'structural contracts; Java, watch runtime and device checks are separate'}
     (out_dir/'check.json').write_text(json.dumps(report,indent=2)+'\n')
     dev.log(f"scene checks: {report['status']}; evidence: {out_dir}")
     return 0 if ok else 1
@@ -157,15 +225,14 @@ def check_watch(dev,cfg,out_dir):
     report={'suite':'actual-monkey-c-state-tests','status':'fail'};client=None
     try:
         if dev.build_watch(cfg,out_dir/'build',jungle=jungle,unit_tests=True):raise RuntimeError('unit-test compilation failed')
-        build=json.loads((out_dir/'build/build.json').read_text());sdk=Path(cfg.get('garmin_sdk') or os.environ['GARMIN_SDK_HOME']).expanduser()
-        env=os.environ.copy()
-        if cfg.get('garmin_library_path'):env['LD_LIBRARY_PATH']=str(Path(cfg['garmin_library_path']).expanduser())+os.pathsep+env.get('LD_LIBRARY_PATH','')
+        build=json.loads((out_dir/'build/build.json').read_text())
+        sdk,env,simulator=ensure_simulator(cfg,out_dir);report.update(simulator)
         command=[str(sdk/'bin/monkeydo'),build['artifact'],'fr970','-t']
         with (out_dir/'tests.log').open('wb') as log:
             client=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
         code=client.wait(timeout=60)
         text=(out_dir/'tests.log').read_text(errors='replace')
-        ok,count=watch_test_result(text,code,minimum=11)
+        ok,count=watch_test_result(text,code,minimum=23)
         report.update(status='pass' if ok else 'fail',exit_code=code,tests=count,command=command,
                       verdict_basis='complete SDK summary; exit 1 calibrated against known pass and known fail on SDK 9.3.0')
     except (OSError,RuntimeError,subprocess.TimeoutExpired) as error:report['reason']=str(error)

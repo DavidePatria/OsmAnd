@@ -10,4 +10,6 @@ class InputAdapter {
     function advance(delta as Number) as Void {}
     function togglePause() as Void {}
     function paused() as Boolean { return false; }
+    function didDraw(scene as Dictionary?,status as String) as Void {}
+    function afterFrame() as Void {}
 }

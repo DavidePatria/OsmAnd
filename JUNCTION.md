@@ -1,6 +1,6 @@
 # Junction companion workspace
 
-OsmAnd calculates the motorcycle route on Android. The standalone Garmin Forerunner 970 prototype shows a fixed upcoming-junction schematic, with gray road context, the selected route in yellow and a one-second test countdown. **Current priority: review actual road layouts using watch previews and the simulator; continuous phone position delivery is still pending.**
+OsmAnd calculates the motorcycle route on Android. The standalone Garmin Forerunner 970 prototype shows a fixed upcoming-junction schematic, with motorcycle road context, the selected route in yellow and a one-second distance display. Java geometry, optional Android export and bridge/watch delivery code now build and pass host/simulator checks. **Next: verify actual phone progress and live SDK delivery; the current demonstrated journey still uses recorded geometry and synthetic progress.**
 
 Start with [current status](tasks/START_HERE.md), [verification evidence](tasks/verification.md), and the [execution tasks](tasks/todo.md). [AGENTS.md](AGENTS.md) records project instructions. This is an implementation in progress, not a finished navigation companion.
 

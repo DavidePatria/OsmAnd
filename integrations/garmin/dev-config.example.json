@@ -6,6 +6,7 @@
   "garmin_device": "fr970",
   "garmin_device_dir": "/path/to/.Garmin/ConnectIQ/Devices/fr970",
   "garmin_key": "/private/path/to/ciq_dev_key.der",
+  "bridge_debug_keystore": "",
   "garmin_library_path": "",
   "osmand_api_aar": "",
   "adb_serial": "",

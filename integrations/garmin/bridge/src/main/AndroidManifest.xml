@@ -1,13 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <queries><package android:name="com.garmin.android.apps.connectmobile" /></queries>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <queries><package android:name="com.garmin.android.apps.connectmobile" /><package android:name="net.osmand.plus.junction" /></queries>
     <application android:allowBackup="false" android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
-        <activity android:name=".EchoActivity" android:exported="true">
+        <activity android:name=".EchoActivity" android:exported="true" />
+        <activity android:name=".NavigationActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service android:name=".NavigationService" android:exported="false" android:foregroundServiceType="connectedDevice" />
     </application>
 </manifest>

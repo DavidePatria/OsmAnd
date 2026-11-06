@@ -22,9 +22,17 @@ android {
             aidl.srcDirs = ["src"]
             java.srcDirs = ["src"]
         }
+        test {
+            java.srcDirs = ["test/java"]
+        }
     }
     buildFeatures {
         aidl true
+    }
+    testOptions {
+        unitTests.all {
+            systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+        }
     }
     publishing {
         singleVariant('release') {
@@ -66,6 +74,8 @@ afterEvaluate {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.annotation:annotation:1.6.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.16.1'
 }
 
 tasks.register('sourcesJar', Jar) {

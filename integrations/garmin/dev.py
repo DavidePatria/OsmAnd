@@ -3,13 +3,14 @@
 
 Command interface (defined in tasks/plan.md section 5):
   doctor   - report environment readiness and source lock (T00)
-  build    - build osmand|bridge|watch|all        (planned, later tasks)
-  check    - scene/protocol or real watch tests; geometry|api pending
+  build    - bridge, echo watch or navigation watch (Android app uses Gradle)
+  check    - protocol, geometry, API, bridge or real watch tests
   run      - watch/echo smoke or recorded-scene replay; desk pending
   iterate  - incremental build/deploy/launch loop   (planned, later tasks)
 
-Implemented: doctor, watch/bridge builds, watch/echo smoke, recorded replay,
-scene and actual Monkey C checks. Other targets fail explicitly.
+Implemented: doctor, watch/navigation-watch/bridge builds, watch/navigation startup
+and echo smoke, recorded replay, JVM/API/bridge and actual Monkey C checks.
+The all/desk/iterate orchestration remains explicitly unimplemented.
 
 Local configuration: --config <json> (see dev-config.example.json),
 environment variables, then defaults. Paths and device serials are local
@@ -487,6 +488,8 @@ def build_bridge(cfg, out_dir):
     if cfg.get("java_home"):
         env["JAVA_HOME"] = str(Path(cfg["java_home"]).expanduser())
     command = [str(REPO_ROOT / "gradlew"), "-p", str(project), "assembleDebug", "--console=plain", f"-PosmandApiAar={api_aar}"]
+    if cfg.get("bridge_debug_keystore"):
+        command.append("-PjunctionDebugKeystore="+str(Path(cfg["bridge_debug_keystore"]).expanduser()))
     try:
         result = subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=600)
         code, output = result.returncode, result.stdout + result.stderr
@@ -506,7 +509,7 @@ def build_bridge(cfg, out_dir):
     return 0 if report["status"] == "pass" else 1
 
 
-def watch_smoke(cfg, out_dir, timeout):
+def watch_smoke(cfg, out_dir, timeout, navigation=False, capacity=False):
     """Build, deploy and require the current app's real fr970 drawing callback.
 
     The callback proves execution, not visual correctness or physical transport.
@@ -519,7 +522,11 @@ def watch_smoke(cfg, out_dir, timeout):
     report_path = out_dir / "run.json"
     # Overwrite stale success even when rebuilding fails.
     report_path.write_text(json.dumps(report, indent=2) + "\n")
-    if build_watch(cfg, out_dir / "build") != 0:
+    if navigation:report["mode"]="navigation-startup-smoke"
+    if capacity:report["mode"]="synthetic-capacity-smoke-normal-app-heap"
+    jungle=TOOL_DIR/"watch/capacity-smoke.jungle" if capacity else TOOL_DIR/"watch/navigation-smoke.jungle" if navigation else None
+    build_code = build_watch(cfg,out_dir/"build",jungle=jungle)
+    if build_code != 0:
         report.update(reason="watch build failed; deployment not attempted")
         report_path.write_text(json.dumps(report, indent=2) + "\n")
         return 1
@@ -566,6 +573,15 @@ def watch_smoke(cfg, out_dir, timeout):
         deadline = time.monotonic() + timeout
         while True:
             if watch_frame_seen(log_path.read_text(errors="replace"), report["build_id"]):
+                if navigation or capacity:
+                    try:exit_code=client.wait(timeout=7)
+                    except subprocess.TimeoutExpired:raise RuntimeError("startup smoke drew but did not exit cleanly")
+                    if exit_code!=0:raise RuntimeError(f"startup smoke exit code {exit_code}")
+                    report.update(transport="disabled in bounded startup smoke",exit_code=exit_code)
+                if capacity:
+                    if 'JUNCTION_CAPACITY_RENDER paths=40 points=512' not in log_path.read_text(errors='replace'):
+                        raise RuntimeError('maximum geometry did not reach renderer')
+                    report.update(scope="synthetic 40-path/512-point layered decode and render under normal fr970 application heap; not mapped junction evidence")
                 report.update(status="pass", evidence="current-build drawing callback at 454x454")
                 break
             if client.poll() is not None:
@@ -748,22 +764,24 @@ def main(argv):
     p_doctor.add_argument("--out", default="build/garmin-review/doctor", help="output directory (repo-relative)")
     p_doctor.add_argument("--config", help="local config JSON (see dev-config.example.json)")
     p_build = sub.add_parser("build", help="build an implementation target")
-    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "all"))
+    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "all"))
     p_build.add_argument("--out", default="build/garmin-review/build")
     p_build.add_argument("--config", help="private local config JSON")
     p_run = sub.add_parser("run", help="run an implementation scenario")
-    p_run.add_argument("--mode", required=True, choices=("watch-smoke", "echo-prepare", "echo-smoke", "replay", "desk"))
+    p_run.add_argument("--mode", required=True, choices=("watch-smoke", "navigation-smoke", "capacity-smoke", "echo-prepare", "echo-smoke", "replay", "desk"))
     p_run.add_argument("--out", default="build/garmin-review/watch-smoke")
     p_run.add_argument("--config", help="private local config JSON")
     p_run.add_argument("--timeout", type=float, default=45, help="runtime timeout in seconds")
     p_run.add_argument("--scenario", choices=("double-turn", "next-turn", "fork"), default="double-turn")
     p_run.add_argument("--speed", type=float, default=1)
     p_run.add_argument("--capture", type=Path, help="actual raw OsmAnd route capture to compile for replay")
+    p_run.add_argument("--scene", type=Path, help="precompiled recorded scene (e.g. from the Java compiler)")
+    p_run.add_argument("--trace", type=Path, help="bounded actual Android snapshot trace; exits normally after playback")
     p_run.add_argument("--context", type=Path, help="matching unfiltered OBF road-context query (optional)")
     p_run.add_argument("--maneuver", type=int, help="original maneuver index in the supplied capture")
     p_run.add_argument("--hold", action="store_true", help="hold the first replay scene; Start/Select toggles playback")
     p_check = sub.add_parser("check", help="run actual scene/protocol or watch tests")
-    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "geometry", "api", "all"))
+    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "geometry", "api", "bridge", "all"))
     p_check.add_argument("--out", default="build/garmin-review/check")
     p_check.add_argument("--config")
     for name in ("iterate",):
@@ -793,6 +811,23 @@ def main(argv):
         if not out_dir.is_absolute(): out_dir=REPO_ROOT/out_dir
         if args.suite == "protocol": return check_protocol(sys.modules[__name__],out_dir)
         return check_watch(sys.modules[__name__],cfg,out_dir)
+    if args.command == "check" and args.suite in ("geometry", "api", "bridge"):
+        from host_checks import check
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
+        return check(sys.modules[__name__],cfg,out_dir,args.suite)
+    if args.command == "build" and args.target == "navigation-watch":
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
+        return build_watch(cfg,out_dir,jungle=TOOL_DIR/"watch/navigation.jungle")
+    if args.command == "run" and args.mode == "navigation-smoke":
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
+        return watch_smoke(cfg,out_dir,args.timeout,navigation=True)
+    if args.command == "run" and args.mode == "capacity-smoke":
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
+        return watch_smoke(cfg,out_dir,args.timeout,capacity=True)
     if args.command == "build" and args.target in ("watch", "bridge"):
         out_dir = Path(args.out)
         if not out_dir.is_absolute():
@@ -804,7 +839,7 @@ def main(argv):
         from replay import run_replay
         out_dir = Path(args.out)
         if not out_dir.is_absolute(): out_dir = REPO_ROOT / out_dir
-        return run_replay(sys.modules[__name__], cfg, out_dir, args.scenario, args.speed, args.timeout, args.capture, args.maneuver, args.hold, args.context)
+        return run_replay(sys.modules[__name__], cfg, out_dir, args.scenario, args.speed, args.timeout, args.capture, args.maneuver, args.hold, args.context, args.scene, args.trace)
     if args.command == "run" and args.mode in ("watch-smoke", "echo-prepare", "echo-smoke"):
         if args.timeout <= 0:
             parser.error("--timeout must be positive")

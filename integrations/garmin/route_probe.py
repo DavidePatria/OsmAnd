@@ -36,12 +36,16 @@ def sample(adb, action="CAPTURE_ROUTE"):
         "net.osmand.junction." + action, "--es", "request", request])])
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
-        result = subprocess.run(adb + ["exec-out", "run-as", PACKAGE, "cat", "files/junction-probe/latest.json"],
-                                capture_output=True, text=True, timeout=15)
-        if result.returncode == 0:
-            value = json.loads(result.stdout)
-            if value.get("request") == request:
-                return value
+        for reader in (["cat", f"/sdcard/Android/data/{PACKAGE}/files/junction-desk/route.json"],
+                       ["run-as", PACKAGE, "cat", "files/junction-probe/latest.json"]):
+            result = subprocess.run(adb + ["exec-out", *reader], capture_output=True, text=True, timeout=15)
+            if result.returncode == 0:
+                try:
+                    value = json.loads(result.stdout)
+                except ValueError:
+                    continue
+                if value.get("request") == request:
+                    return value
         time.sleep(0.2)
     raise RuntimeError("probe did not publish this request; check debug APK, receiver permission and app initialization")
 
@@ -90,6 +94,7 @@ def main():
     parser.add_argument("--baseline", action="store_true")
     parser.add_argument("--motorcycle", action="store_true")
     parser.add_argument("--install", action="store_true")
+    parser.add_argument("--apk", type=Path, help="explicit isolated APK (for example the x86 Waydroid variant)")
     args = parser.parse_args()
     if args.motorcycle and not args.baseline:
         parser.error("--motorcycle requires --baseline so the route is recalculated with that profile")
@@ -99,7 +104,7 @@ def main():
         cfg = json.loads(args.config.expanduser().read_text())
         adb = dev.selected_adb(cfg)
         if args.install:
-            apk = dev.REPO_ROOT / "OsmAnd/build/outputs/apk/androidFullOpenglArm64/debug/OsmAnd-androidFull-opengl-arm64-debug.apk"
+            apk = args.apk or dev.REPO_ROOT / "OsmAnd/build/outputs/apk/androidFullOpenglArm64/debug/OsmAnd-androidFull-opengl-arm64-debug.apk"
             aapt = Path(dev.sdk_root(cfg)).expanduser() / "build-tools/36.0.0/aapt"
             badging = command([str(aapt), "dump", "badging", str(apk)])
             if not re.search(r"^package: name='net\.osmand\.plus\.junction' ", badging, re.MULTILINE):

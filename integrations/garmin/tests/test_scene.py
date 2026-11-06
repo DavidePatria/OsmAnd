@@ -20,6 +20,27 @@ def scene():
 
 
 class SceneValidationTests(unittest.TestCase):
+    def test_precompiled_replay_requires_actual_capture_provenance(self):
+        from replay import load_recorded_scene
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            file=Path(folder)/'scene.json'
+            file.write_text(json.dumps({'scene':scene()}))
+            with self.assertRaises(ValueError):load_recorded_scene(file)
+        self.assertEqual(load_recorded_scene(ROOT/'fixtures/recorded/fork.json')['provenance']['kind'],'actual_osmand_capture')
+
+    def test_invalid_replay_overwrites_old_success_without_deploying(self):
+        from replay import run_replay
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder);(out/'run.json').write_text('{"status":"pass"}')
+            invalid=out/'invalid.json';invalid.write_text('{}')
+            dev=SimpleNamespace(log=lambda message:None,build_watch=Mock(side_effect=AssertionError('must not deploy')))
+            self.assertEqual(run_replay(dev,{},out,'fork',1,1,scene_path=invalid),1)
+            self.assertEqual(json.loads((out/'run.json').read_text())['status'],'fail')
+            dev.build_watch.assert_not_called()
     def test_sdk_result_requires_a_complete_consistent_passing_summary(self):
         from replay import watch_test_result
         self.assertEqual(watch_test_result('Ran 1 tests\nPASSED (passed=1, failed=0, errors=0)\n',1),(True,1))
@@ -94,6 +115,9 @@ class SceneValidationTests(unittest.TestCase):
 
 
 class DiagnosticCompilerTests(unittest.TestCase):
+    def test_maneuver_index_cannot_wrap_to_the_last_direction(self):
+        for index in (-1,1,True):
+            with self.assertRaises(ValueError):compile_scene(self.capture(),index,'hash')
     def test_non_motor_classes_are_omitted_unless_access_overrides(self):
         for kind in ('footway','cycleway','path','pedestrian','steps','bridleway'):
             self.assertIsNotNone(non_motor_reason({'highway':kind}),kind)
