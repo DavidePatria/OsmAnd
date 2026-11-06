@@ -88,6 +88,8 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
                 "pause" -> helper.pauseNavigation()
                 "resume" -> helper.resumeNavigation()
                 "reload" -> app.aidlApi.reloadIndexes()
+                "enable_auto_start" -> app.settings.JUNCTION_AUTO_START.setModeValue(helper.appMode,true)
+                "disable_auto_start" -> app.settings.JUNCTION_AUTO_START.setModeValue(helper.appMode,false)
                 "grant_bridge", "deny_bridge" -> {
                     val client = app.aidlApi.getOrCreateConnectedApp(BRIDGE)
                     app.aidlApi.setGroupGranted(client, AidlPermissionGroup.LOCATION, operation == "grant_bridge")
@@ -99,6 +101,8 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
                 .put("appDataDirectory", app.appPath.absolutePath)
                 .put("routeCalculated", helper.isRouteCalculated).put("recalculating", helper.isRouteBeingCalculated)
                 .put("following", helper.isFollowingMode).put("paused", helper.isPauseNavigation)
+                .put("routeFinished", helper.isRouteWasFinished)
+                .put("autoStartEnabled", app.settings.JUNCTION_AUTO_START.getModeValue(helper.appMode))
                 .put("deviated", helper.isDeviatedFromRoute).put("simulating", simulation.isRouteAnimating)
                 .put("routePoint", helper.route.currentRoute).put("routePoints", helper.route.immutableAllLocations.size)
                 .put("routeToken", System.identityHashCode(helper.route).toString(16))
