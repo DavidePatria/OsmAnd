@@ -18,6 +18,7 @@ object SnapshotCodec {
             if (raw.containsKey(key)) result[key] = ((raw[key] as Int).toLong()+age).coerceAtMost(60_000).toInt()
         }
         if (raw.containsKey("speedDmps")) result["speedDmps"] = raw["speedDmps"] as Int
+        if (raw.containsKey("destination")) result["destination"] = (raw["destination"] as List<*>).toList()
         // Raw maps are freshly owned; normalize away future/unknown fields before SDK serialization.
         result["anchors"] = (raw["anchors"] as List<*>).map { a ->
             val item=a as Map<*, *>;mapOf("id" to item["id"]!!,"point" to item["point"]!!,"routeIndex" to item["routeIndex"]!!)
@@ -55,7 +56,7 @@ object SnapshotCodec {
     internal fun validate(raw: Map<*, *>) {
         require(required.all { raw.containsKey(it) })
         require(raw["version"]==1 && text(raw["session"],1,64) && number(raw["generation"],0,1_000_000) && number(raw["seq"],0,1_000_000))
-        require(raw["state"] in listOf("active","idle","recalculating","unavailable"))
+        require(raw["state"] in listOf("active","idle","recalculating","unavailable","arrived"))
         val mode=raw["geometryMode"];require(mode in listOf("map_context","layer_context","routing_branches","route_only","unavailable"))
         require(listOf("reason","roadName","maneuver").all { text(raw[it]) })
         require(number(raw["distanceM"],0,1_000_000) && number(raw["radiusDm"],1,2000))
@@ -100,5 +101,11 @@ object SnapshotCodec {
         }
         if(raw["state"]=="active" && mode!="unavailable") require(selected==1 && anchors.isNotEmpty())
         else require(paths.isEmpty() && anchors.isEmpty())
+        if(raw["state"]=="arrived")require(mode=="unavailable" && raw["distanceM"]==0)
+        if(raw.containsKey("destination")) {
+            require(raw["state"]=="active" && mode!="unavailable" && point(raw["destination"],radius))
+            val chosen=paths.single { (it as Map<*,*>)["role"]=="selected" } as Map<*,*>
+            require((chosen["points"] as List<*>).last()==raw["destination"])
+        }
     }
 }

@@ -19,6 +19,7 @@ class NavigationActivity : Activity() {
     private lateinit var status:TextView
     private lateinit var choices:LinearLayout
     private var lastDevices=""
+    private var automatic=false
     private val refresh=object:Runnable {
         override fun run() {
             val prefs=getSharedPreferences(NavigationService.PREFS,MODE_PRIVATE)
@@ -51,6 +52,9 @@ class NavigationActivity : Activity() {
         } })
         choices=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL };layout.addView(choices)
         setContentView(layout)
+        automatic=intent.getBooleanExtra("auto_start_from_osmand",false) && callingPackage==NavigationService.OSMAND
+        if(automatic)android.util.Log.i("JunctionBridge","AUTO_START authenticated OsmAnd caller")
+        if(automatic)startBridge()
     }
     private fun startBridge() {
         val permissions=mutableListOf<String>()
@@ -61,9 +65,12 @@ class NavigationActivity : Activity() {
         }
         if(permissions.isNotEmpty()) { requestPermissions(permissions.toTypedArray(),1);return }
         val intent=Intent(this,NavigationService::class.java)
+            .putExtra("request_watch_open",true)
         // Explicit test intent only; normal user starts always use Garmin Connect.
-        if(this.intent.getStringExtra("transport")=="tethered") intent.putExtra("transport","tethered")
+        if(BuildConfig.DEBUG && (this.intent.getStringExtra("transport")=="tethered" ||
+            prefs.getBoolean("deskTethered",false))) intent.putExtra("transport","tethered")
         if(Build.VERSION.SDK_INT>=26) startForegroundService(intent) else startService(intent)
+        if(automatic)finish()
     }
     override fun onRequestPermissionsResult(code:Int,permissions:Array<out String>,results:IntArray) {
         super.onRequestPermissionsResult(code,permissions,results)

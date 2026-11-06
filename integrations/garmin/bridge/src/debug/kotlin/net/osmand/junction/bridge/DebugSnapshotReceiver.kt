@@ -24,10 +24,14 @@ class DebugSnapshotReceiver : BroadcastReceiver() {
             try {
                 when (intent.getStringExtra("operation")) {
                     "start_tethered" -> {
+                        context.getSharedPreferences(NavigationService.PREFS,Context.MODE_PRIVATE).edit().putBoolean("deskTethered",true).apply()
                         val service = Intent(context, NavigationService::class.java).putExtra("transport", "tethered")
                         if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service) else context.startService(service)
                     }
-                    "stop_tethered" -> context.stopService(Intent(context, NavigationService::class.java))
+                    "stop_tethered" -> {
+                        context.getSharedPreferences(NavigationService.PREFS,Context.MODE_PRIVATE).edit().remove("deskTethered").apply()
+                        context.stopService(Intent(context, NavigationService::class.java))
+                    }
                     else -> error("unsupported fixed debug operation")
                 }
                 result.put("status", "ok")

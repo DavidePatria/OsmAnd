@@ -10,10 +10,10 @@ object CompactWire {
     val words = listOf("active","idle","recalculating","unavailable","map_context","layer_context",
         "routing_branches","route_only","selected","branch","context",
         "motorcycle road context; intersections do not imply connectivity","motorcycle road context with level ordering") +
-        (0..3).map { "j$it" } + (1..40).map { "c$it" }
+        (0..3).map { "j$it" } + (1..40).map { "c$it" } + listOf("arrived")
     fun encode(reply: Map<String,Any>): ByteArray {
         require(reply["version"]==1 && reply["kind"] in listOf("junction_snapshot","junction_unavailable"))
-        val w=Writer();w.u(74);w.u(67);w.u(1)
+        val w=Writer();w.u(74);w.u(67);w.u(2)
         val unavailable=reply["kind"]=="junction_unavailable";w.u(if(unavailable)1 else 0)
         w.text(reply["epoch"] as String);w.u(reply["requestId"] as Int)
         if(unavailable)w.text(reply["reason"] as String) else {
@@ -38,6 +38,8 @@ object CompactWire {
                     if(v["role"]=="selected") (v["segmentLayers"] as List<*>).forEach { w.s(it as Int) }
                 }
             }
+            w.u(if(s.containsKey("destination"))1 else 0)
+            if(s.containsKey("destination"))w.point(s["destination"] as List<*>)
         }
         return w.bytes.toByteArray().also { require(it.size<=8192) }
     }

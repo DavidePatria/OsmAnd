@@ -23,7 +23,7 @@ class NavigationDelivery {
             val generation=request["displayedGeneration"] as? Int ?: return null
             val seq=request["displayedSeq"] as? Int ?: return null
             if(session.length !in 1..64 || generation !in 0..1_000_000 || seq !in 0..1_000_000 ||
-                request["displayedState"] !in listOf("active","idle","recalculating","unavailable","stale_source","stale_transport"))return null
+                request["displayedState"] !in listOf("active","idle","recalculating","unavailable","arrived","stale_source","stale_transport"))return null
         }
         if (epoch == lastEpoch && id <= lastId) return null
         if (epoch != lastEpoch) {

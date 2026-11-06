@@ -19,6 +19,7 @@ class NavigationService:Service() {
     private val main=Handler(Looper.getMainLooper())
     private val worker=Executors.newSingleThreadExecutor()
     private val delivery=NavigationDelivery()
+    private val launchGate=WatchLaunchGate()
     private var sdk:ConnectIQ?=null
     private var device:IQDevice?=null
     private val watch=IQApp(EchoActivity.WATCH_APP_ID)
@@ -56,6 +57,7 @@ class NavigationService:Service() {
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         if(intent?.action==STOP) { stopSelf();return START_NOT_STICKY }
         if(!foreground)return START_NOT_STICKY
+        if(intent?.getBooleanExtra("request_watch_open",false)==true)launchGate.request()
         if(sdk==null) {
             tethered=intent?.getStringExtra("transport")=="tethered"
             bindSource()
@@ -93,10 +95,11 @@ class NavigationService:Service() {
             val chosen=prefs.getLong("deviceId",-1)
             val selected=if(chosen>=0) devices.singleOrNull { it.deviceIdentifier==chosen } else devices.singleOrNull()
             if(selected==null) { status(R.string.navigation_choose_watch,"DEVICE_SELECTION_REQUIRED count=${devices.size}");return }
-            if(device?.deviceIdentifier==selected.deviceIdentifier)return
+            if(device?.deviceIdentifier==selected.deviceIdentifier) {requestWatchOpen();return}
             device?.let { instance.unregisterForEvents(it) };delivery.connectionChanged();device=selected
             instance.registerForDeviceEvents(selected) { _,state -> onMain {
                 delivery.connectionChanged();status(R.string.navigation_waiting_watch,"DEVICE_STATUS $state")
+                if(state==IQDevice.IQDeviceStatus.CONNECTED)requestWatchOpen()
             } }
             val listener=ConnectIQ.IQApplicationEventListener { sender,_,messages,result -> onMain {
                 if(sender.deviceIdentifier==device?.deviceIdentifier && result==ConnectIQ.IQMessageStatus.SUCCESS) messages.orEmpty().forEach { receive(selected,it) }
@@ -104,7 +107,24 @@ class NavigationService:Service() {
             instance.registerForAppEvents(selected,watch,listener)
             if(tethered)instance.registerForAppEvents(selected,IQApp(""),listener)
             status(R.string.navigation_waiting_watch,"WATCH_REGISTERED")
+            requestWatchOpen()
         } catch(error:Exception) { status(R.string.navigation_garmin_unavailable,"REGISTER_ERROR ${error.javaClass.simpleName}") }
+    }
+    private fun requestWatchOpen() {
+        val instance=sdk ?: return
+        val target=device ?: return
+        try {
+            if(!launchGate.begin(SystemClock.elapsedRealtime(),instance.getDeviceStatus(target)==IQDevice.IQDeviceStatus.CONNECTED))return
+            instance.openApplication(target,watch) { _,_,result -> onMain {
+                val label=when(result) {
+                    ConnectIQ.IQOpenApplicationStatus.PROMPT_SHOWN_ON_DEVICE -> R.string.navigation_watch_prompt
+                    ConnectIQ.IQOpenApplicationStatus.APP_IS_NOT_INSTALLED -> R.string.navigation_watch_not_installed
+                    ConnectIQ.IQOpenApplicationStatus.APP_IS_ALREADY_RUNNING -> R.string.navigation_waiting_watch
+                    else -> R.string.navigation_watch_open_manually
+                }
+                status(label,"WATCH_OPEN_STATUS $result")
+            } }
+        } catch(error:Exception) {Log.w("JunctionBridge","WATCH_OPEN_ERROR ${error.javaClass.simpleName}")}
     }
     private fun receive(target:IQDevice,message:Any?) {
         val ticket=delivery.begin(message,SystemClock.elapsedRealtime()) ?: return
@@ -113,7 +133,7 @@ class NavigationService:Service() {
         val displayedGeneration=ack?.get("displayedGeneration") as? Int
         val displayedState=ack?.get("displayedState") as? String
         if(displayedSeq!=null && displayedGeneration!=null && displayedSeq in 0..1_000_000 && displayedGeneration in 0..1_000_000 &&
-            displayedState in listOf("active","idle","recalculating","unavailable","stale_source","stale_transport")) {
+            displayedState in listOf("active","idle","recalculating","unavailable","arrived","stale_source","stale_transport")) {
             Log.i("JunctionBridge","DRAW_ACK generation=$displayedGeneration seq=$displayedSeq state=$displayedState")
         }
         val api=source

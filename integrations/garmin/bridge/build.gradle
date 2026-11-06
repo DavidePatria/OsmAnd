@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    buildFeatures { buildConfig true }
     namespace 'net.osmand.junction.bridge'
     compileSdk 36
     defaultConfig {

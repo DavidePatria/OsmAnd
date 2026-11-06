@@ -20,6 +20,19 @@ class NavigationDeliveryTest {
         raw.put("geometryMode","layer_context");path.put("segmentLayers",org.json.JSONArray(listOf(0)))
         assertThrows(IllegalArgumentException::class.java) { SnapshotCodec.decode(raw.toString(),1,0,0,0) }
     }
+    @Test fun destinationMustMatchEndpointAndIsCopied() {
+        val raw=JSONObject(scene()).put("destination",org.json.JSONArray(listOf(100,0)))
+        val decoded=SnapshotCodec.decode(raw.toString(),1,0,0,0)
+        raw.getJSONArray("destination").put(0,101);assertEquals(listOf(100,0),decoded["destination"])
+        assertThrows(IllegalArgumentException::class.java) { SnapshotCodec.decode(raw.toString(),1,0,0,0) }
+    }
+    @Test fun arrivalIsNotAnActiveRouteAndAcknowledgementIsAccepted() {
+        val raw=JSONObject(scene()).put("state","arrived").put("geometryMode","unavailable").put("distanceM",0)
+            .put("anchors",org.json.JSONArray()).put("paths",org.json.JSONArray())
+        assertEquals("arrived",SnapshotCodec.decode(raw.toString(),1,0,0,0)["state"])
+        val request=request().toMutableMap<String,Any>();request.putAll(mapOf("displayedSession" to "s","displayedGeneration" to 1,"displayedSeq" to 1,"displayedState" to "arrived"))
+        assertNotNull(NavigationDelivery().begin(request,0))
+    }
     private fun request(id:Int=1,epoch:String="watch")=mapOf("version" to 1,"kind" to "junction_request","epoch" to epoch,"requestId" to id)
     private fun scene()="""{"version":1,"session":"test","generation":1,"seq":1,"state":"active","geometryMode":"route_only","reason":"test","distanceM":120,"roadName":"Test","maneuver":"TR","radiusDm":800,"sourceAgeMs":50,"fixAgeMs":100,"progressAgeMs":100,"speedDmps":0,"anchors":[{"id":"a","point":[0,0],"routeIndex":1}],"paths":[{"id":"route","role":"selected","points":[[0,-100],[0,0],[100,0]],"anchorRefs":[["a",1]]}]}"""
     @Test fun oneSlotAndOldCallbackCannotReleaseLaterRequest() {

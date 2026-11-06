@@ -1,4 +1,7 @@
 <resources>
+    <string name="navigation_watch_prompt">Confirm opening Junction on your watch.</string>
+    <string name="navigation_watch_not_installed">Install the Junction app on your watch, then try again.</string>
+    <string name="navigation_watch_open_manually">Open Junction on your watch to continue.</string>
     <string name="app_name">Junction Companion</string>
     <string name="navigation_explanation">Keep OsmAnd navigating on the phone and open Junction on your Garmin. Start the connection here; you can stop it at any time.</string>
     <string name="navigation_start">Start connection</string>
