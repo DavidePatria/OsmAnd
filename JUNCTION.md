@@ -31,12 +31,48 @@ Keeping this single repository makes the user's push/clone workflow straightforw
 
 ## Another computer
 
-1. Clone your personal project into an otherwise suitable workspace parent, then enter the clone. Use the same branch/commits you pushed.
-2. Run `python3 integrations/garmin/bootstrap.py`. It clones only missing required siblings at locked commits and refuses to reset existing directories. `--check` is read-only and works offline.
-3. Install the Android toolchain listed in `workspace.lock.json`: JDK 17+ (21 tested), SDK platform/build-tools 36, NDK `27.2.12479018`. The Gradle wrapper is included. Garmin SDK/profile/fonts and the existing private signing key are needed only for watch work.
-4. Copy `integrations/garmin/dev-config.example.json` to `~/.config/osmand-junction/dev-config.json` and fill in this computer's SDK paths/device selection. Never put the private file or signing key in the clone. Back up/transfer the existing Garmin key securely rather than generating a new update identity. Updating the already-installed bridge on another computer also needs the same Android debug keystore (normally `~/.android/debug.keystore`); transfer it securely outside Git. The OsmAnd development build uses the repository's existing development signing configuration.
-5. Run `python3 integrations/garmin/dev.py doctor`. Follow the [setup and commands](integrations/garmin/README.md). Doctor's Garmin warnings do not block Android-only route-data investigation.
-6. Build the separate Android test instance using the documented 2 GB Gradle heap/two-worker command. Connect the phone with USB debugging; update-install preserves maps/preferences. A new phone needs the small offline test map once.
+One repository is enough. The sibling build inputs (`resources`, `core-legacy`,
+`build`) are public upstream checkouts recreated by `bootstrap.py`; do not create
+personal repositories for them.
+
+1. Fork `osmandapp/OsmAnd` on GitHub (so the full history exists), then push your
+   `garmin-junction-plan` branch to the fork. Do not push to a bare empty repository:
+   this checkout is shallow.
+2. Clone the fork into a suitable workspace parent and enter the clone.
+3. Run `python3 integrations/garmin/bootstrap.py`. It clones only missing required
+   siblings at the commits recorded in `workspace.lock.json` and refuses to reset
+   existing directories. `--check` is read-only and works offline.
+4. Install the toolchain recorded in `workspace.lock.json`: JDK 21 (17 minimum),
+   Android SDK platform 36 + build-tools 36.0.0, NDK `27.2.12479018`. The Gradle
+   wrapper is included. For watch or simulator work also install Connect IQ SDK
+   9.3.0 **and** download the `fr970` device profile and fonts; installing the SDK
+   archive alone is insufficient.
+5. Copy `integrations/garmin/dev-config.example.json` to
+   `~/.config/osmand-junction/dev-config.json` and fill in this computer's SDK paths
+   and device selection. Never put the private file or signing keys in the clone.
+   Transfer the existing Garmin 4096-bit RSA key securely rather than generating a
+   new update identity; to update an already-installed bridge you also need the same
+   Android debug keystore (normally `~/.android/debug.keystore`). The OsmAnd
+   development build uses the repository's existing development signing configuration.
+6. On Ubuntu 24.04 the bundled simulator needs an older WebKitGTK ABI. Restore it
+   from `integrations/garmin/linux-runtime.lock.json` as described in the
+   [setup README](integrations/garmin/README.md), and set `garmin_library_path`.
+7. Run `python3 integrations/garmin/dev.py doctor`. Doctor's Garmin warnings do not
+   block Android-only route-data investigation.
+8. Build with the documented commands in the [setup README](integrations/garmin/README.md):
+   the isolated Android test app (2 GB Gradle heap / two workers), the bridge
+   (`dev.py build --target bridge`) and the watch (`--target navigation-watch`).
+   Update-install with `adb install -r` preserves maps/preferences; a new phone
+   needs the small offline test map once.
+
+### Resuming work
+
+After setup, read [tasks/START_HERE.md](tasks/START_HERE.md) for the current status
+and next steps, then [tasks/todo.md](tasks/todo.md) and
+[tasks/verification.md](tasks/verification.md) for task state and evidence. The next
+authorized work is T12a (destination marker, arrival screen, opt-in automatic bridge
+start). The optional Waydroid desk workflow in the setup README reproduces the
+Android simulation without a phone; physical-device and Bluetooth gates stay open.
 
 Generated evidence is under ignored `build/garmin-review/` inside this clone. It is not pushed. Tracked verification documents summarize the important observations and reproduction commands; recreate device captures locally. The larger sibling `build/` directory outside the clone is a separate upstream input, not the evidence directory.
 
