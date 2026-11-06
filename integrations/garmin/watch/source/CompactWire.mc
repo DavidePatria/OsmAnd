@@ -7,6 +7,7 @@ module CompactWire {
         var values=["active","idle","recalculating","unavailable","map_context","layer_context","routing_branches","route_only","selected","branch","context","motorcycle road context; intersections do not imply connectivity","motorcycle road context with level ordering"];
         for(var i=0;i<4;i+=1) {values.add("j"+i);}
         for(var i=1;i<=40;i+=1) {values.add("c"+i);}
+        values.add("arrived");
         return values;
     }
     function decode(value as Object?) as Object? {
@@ -19,6 +20,7 @@ class CompactReader {
     private var _data as ByteArray;
     private var _at as Number=0;
     private var _words as Array<String>;
+    private var _format as Number=1;
     function initialize(data as ByteArray) {_data=data;_words=CompactWire.words();}
     private function fail() as Void {throw new Lang.InvalidValueException("compact wire");}
     private function u() as Number {
@@ -34,13 +36,14 @@ class CompactReader {
     private function s() as Number {var n=u();return (n&1)==0?n/2:-(n+1)/2;}
     private function count(limit as Number) as Number {var n=u();if(n>limit) {fail();} return n;}
     private function text() as String {
-        var token=count(_words.size());if(token>0) {return _words[token-1];}
+        var token=count(_format==1?_words.size()-1:_words.size());if(token>0) {return _words[token-1];}
         var size=count(320);if(_at+size>_data.size()) {fail();}
         var bytes=_data.slice(_at,_at+size);_at+=size;
         return StringUtil.convertEncodedString(bytes,{:fromRepresentation=>StringUtil.REPRESENTATION_BYTE_ARRAY,:toRepresentation=>StringUtil.REPRESENTATION_STRING_PLAIN_TEXT,:encoding=>StringUtil.CHAR_ENCODING_UTF8}) as String;
     }
     function reply() as Dictionary? {
-        if(u()!=74 || u()!=67 || u()!=1) {return null;}
+        if(u()!=74 || u()!=67) {return null;}
+        _format=u();if(_format!=1 && _format!=2) {return null;}
         var kind=count(1),epoch=text(),id=u();
         var result={"version"=>1,"kind"=>kind==0?"junction_snapshot":"junction_unavailable","epoch"=>epoch,"requestId"=>id};
         if(kind==1) {result["reason"]=text();} else {result["scene"]=scene();}
@@ -70,6 +73,8 @@ class CompactReader {
             }
             paths.add(p);
         }
-        value["anchors"]=anchors;value["paths"]=paths;return value;
+        value["anchors"]=anchors;value["paths"]=paths;
+        if(_format==2 && count(1)==1) {value["destination"]=[s(),s()];}
+        return value;
     }
 }

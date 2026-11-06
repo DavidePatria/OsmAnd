@@ -9,6 +9,16 @@ class JunctionRenderer {
         dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
         dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,REPLAY_MODE?(paused?"TEST REPLAY - PAUSED":"TEST REPLAY"):"JUNCTION",Graphics.TEXT_JUSTIFY_CENTER);
         var status=state.status(now), scene=state.scene();
+        if(status.equals("arrived")) {
+            dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(3);
+            dc.drawCircle(dc.getWidth()/2,205,108);
+            flag(dc,dc.getWidth()/2-38,265,16);
+            dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
+            dc.drawText(dc.getWidth()/2,326,Graphics.FONT_MEDIUM,"ARRIVED",Graphics.TEXT_JUSTIFY_CENTER);
+            dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
+            dc.drawText(dc.getWidth()/2,380,Graphics.FONT_XTINY,"Destination reached",Graphics.TEXT_JUSTIFY_CENTER);
+            return;
+        }
         if (!status.equals("active") || scene==null || scene["geometryMode"].equals("unavailable")) {
             var label="NO ROUTE";
             if (status.equals("recalculating")) { label="REROUTING"; }
@@ -48,6 +58,10 @@ class JunctionRenderer {
             dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
             dc.drawText(x+10,y-23,Graphics.FONT_XTINY,(i+1).toString(),Graphics.TEXT_JUSTIFY_LEFT);
         }
+        if(scene.hasKey("destination")) {
+            var end=scene["destination"];
+            flag(dc,cx+end[0]*scale,cy-end[1]*scale,5);
+        }
         dc.clearClip();dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
         var name=scene["roadName"];
         // Use the device font metrics, not a guessed character count, to fit a round display.
@@ -56,6 +70,19 @@ class JunctionRenderer {
         dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
         var detail=(scene["geometryMode"].equals("map_context") || scene["geometryMode"].equals("layer_context"))?"MOTOR ROADS":(scene["geometryMode"].equals("route_only")?"ROUTE ONLY":"PARTIAL ROADS");
         dc.drawText(dc.getWidth()/2,414,Graphics.FONT_XTINY,detail,Graphics.TEXT_JUSTIFY_CENTER);
+    }
+    //! Pole foot is the actual destination; checkerboard extends above/right.
+    private function flag(dc as Dc,x as Numeric,y as Numeric,cell as Number) as Void {
+        dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(3);
+        dc.drawLine(x,y,x,y-cell*6);
+        dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);
+        dc.fillRectangle(x+1,y-cell*6-1,cell*4+2,cell*3+2);
+        for(var row=0;row<3;row+=1) {
+            for(var col=0;col<4;col+=1) {
+                dc.setColor((row+col)%2==0?Graphics.COLOR_WHITE:0x343A43,Graphics.COLOR_BLACK);
+                dc.fillRectangle(x+2+col*cell,y-cell*6+row*cell,cell,cell);
+            }
+        }
     }
     private function path(dc as Dc, points as Array, cx as Numeric, cy as Numeric, scale as Numeric) as Void {
         for (var i=1; i<points.size(); i+=1) { dc.drawLine(cx+points[i-1][0]*scale,cy-points[i-1][1]*scale,cx+points[i][0]*scale,cy-points[i][1]*scale); }

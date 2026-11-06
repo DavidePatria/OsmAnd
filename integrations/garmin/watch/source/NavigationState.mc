@@ -29,7 +29,7 @@ module SceneDecoder {
             progressAge=value["progressAgeMs"];speed=value["speedDmps"];
         }
         var status=value["state"], mode=value["geometryMode"], radius=value["radiusDm"];
-        if (!(status.equals("active") || status.equals("idle") || status.equals("recalculating") || status.equals("unavailable"))) { return null; }
+        if (!(status.equals("active") || status.equals("idle") || status.equals("recalculating") || status.equals("unavailable") || status.equals("arrived"))) { return null; }
         if (!(mode.equals("routing_branches") || mode.equals("map_context") || mode.equals("layer_context") || mode.equals("route_only") || mode.equals("unavailable"))) { return null; }
         var layered=mode.equals("layer_context"),context=mode.equals("map_context") || layered;
         var anchors=value["anchors"], paths=value["paths"];
@@ -92,11 +92,25 @@ module SceneDecoder {
         var activeGeometry=status.equals("active") && !mode.equals("unavailable");
         if (activeGeometry && (selected!=1 || anchors.size()==0)) { return null; }
         if (!activeGeometry && (paths.size()!=0 || anchors.size()!=0)) { return null; }
-        return {"version"=>1,"session"=>value["session"],"generation"=>value["generation"],"seq"=>value["seq"],
+        if(status.equals("arrived") && (!mode.equals("unavailable") || value["distanceM"]!=0)) {return null;}
+        var result={"version"=>1,"session"=>value["session"],"generation"=>value["generation"],"seq"=>value["seq"],
             "state"=>status,"geometryMode"=>mode,"reason"=>value["reason"],"distanceM"=>value["distanceM"],
             "roadName"=>value["roadName"],"maneuver"=>value["maneuver"],"radiusDm"=>radius,
             "sourceAgeMs"=>value["sourceAgeMs"],"fixAgeMs"=>value["fixAgeMs"],
             "progressAgeMs"=>progressAge,"speedDmps"=>speed,"anchors"=>normalizedAnchors,"paths"=>normalizedPaths};
+        if(value.hasKey("destination")) {
+            if(!activeGeometry || !point(value["destination"],radius)) {return null;}
+            var destination=value["destination"],found=false;
+            for(var i=0;i<normalizedPaths.size();i+=1) {
+                if("selected".equals(normalizedPaths[i]["role"])) {
+                    var pts=normalizedPaths[i]["points"],last=pts[pts.size()-1];
+                    found=last[0]==destination[0] && last[1]==destination[1];
+                }
+            }
+            if(!found) {return null;}
+            result["destination"]=[destination[0],destination[1]];
+        }
+        return result;
     }
 }
 
@@ -133,6 +147,12 @@ class NavigationState {
     function status(now as Number) as String {
         if (_scene==null) { return "unavailable"; }
         var status=_scene["state"];
+        if (status.equals("arrived")) {
+            var elapsed=now-_receivedAt;
+            if(elapsed<0 || elapsed>3000) {return "stale_transport";}
+            if(_scene["sourceAgeMs"]+elapsed>5000) {return "stale_source";}
+            return status;
+        }
         if (!status.equals("active")) { return status; }
         var age=now-_receivedAt;
         if (age<0) { return "stale_transport"; }

@@ -120,3 +120,23 @@ function incompleteOrLegacyLayerMetadataIsRejected(logger as Test.Logger) as Boo
     s["paths"][0]["segmentLayers"]=[0,1.0];
     return SceneDecoder.decode(s)==null;
 }
+
+(:test) function nativeArrivalIgnoresOldFixButExpiresWithoutFreshSource(logger as Test.Logger) as Boolean {
+    var scene=testScene();scene["state"]="arrived";scene["distanceM"]=0;scene["geometryMode"]="unavailable";scene["anchors"]=[];scene["paths"]=[];
+    scene["fixAgeMs"]=60000;scene["progressAgeMs"]=60000;scene["speedDmps"]=0;
+    var state=new NavigationState();
+    if(!state.accept(scene,0) || !state.status(1000).equals("arrived") || !state.status(3001).equals("stale_transport")) {return false;}
+    scene["seq"]+=1;scene["sourceAgeMs"]=5001;
+    return state.accept(scene,4000) && state.status(4000).equals("stale_source");
+}
+(:test) function cancelAndNewNavigationAreNotArrival(logger as Test.Logger) as Boolean {
+    var state=new NavigationState(),scene=testScene();scene["state"]="idle";scene["geometryMode"]="unavailable";scene["anchors"]=[];scene["paths"]=[];
+    if(!state.accept(scene,0) || !state.status(0).equals("idle")) {return false;}
+    var next=testScene();next["generation"]+=1;return state.accept(next,10) && state.status(10).equals("active");
+}
+(:test) function destinationMustBeTheSelectedEndpointAndIsOwned(logger as Test.Logger) as Boolean {
+    var scene=testScene(),points=scene["paths"][0]["points"],end=points[points.size()-1];scene["destination"]=[end[0],end[1]];
+    var decoded=SceneDecoder.decode(scene);if(decoded==null) {return false;}
+    scene["destination"][0]+=1;
+    return decoded["destination"][0]==end[0] && SceneDecoder.decode(scene)==null;
+}
