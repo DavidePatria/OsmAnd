@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <resources>
+    <string name="junction_companion_auto_start">Start Garmin junction companion</string>
+    <string name="junction_companion_auto_start_summary">Start the companion and request opening the watch app when navigation starts.</string>
+    <string name="junction_companion_start_manually">Open the junction companion to connect your watch.</string>
 <!--
 	README:
 	- The preferred way to help with translations is via https://hosted.weblate.org/engage/osmand/

@@ -58,6 +58,7 @@
 		android:xlargeScreens="true" android:anyDensity="true" />
 
 	<queries>
+        <package android:name="net.osmand.junction.bridge.debug" />
 		<package android:name="net.osmand.srtmPlugin" />
 		<package android:name="net.osmand.srtmPlugin.paid" />
 		<package android:name="net.osmand.skimapsPlugin" />

@@ -214,6 +214,7 @@ public class RoutingHelper {
 		isPausedOnAADisconnect = false;
 		if (follow && !isFollowingMode) {
 			etaSpeedStartTime = System.currentTimeMillis();
+			net.osmand.plus.routing.companion.JunctionCompanionStarter.onNavigationStarted(app);
 		}
 		isFollowingMode = follow;
 		isPauseNavigation = false;

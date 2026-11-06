@@ -4,6 +4,12 @@
 	xmlns:tools="http://schemas.android.com/tools"
 	android:title="@string/routing_settings_2">
 
+    <net.osmand.plus.settings.preferences.SwitchPreferenceEx
+        android:key="junction_auto_start"
+        android:layout="@layout/preference_with_descr_dialog_and_switch"
+        android:title="@string/junction_companion_auto_start"
+        android:summary="@string/junction_companion_auto_start_summary" />
+
 	<Preference
 		android:key="navigation_type"
 		android:layout="@layout/preference_with_descr"
