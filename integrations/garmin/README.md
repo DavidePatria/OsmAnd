@@ -96,7 +96,7 @@ These commands do not access ADB or install apps. Host checks parse actual JUnit
 XML and require nonzero passing counts; watch tests execute in the actual SDK.
 The API tests use pinned test-only Robolectric 4.16.1 on Android API 24/36; 4.17
 pulled a transitive class version unsupported by this project's Jetifier.
-The current totals are 25 JVM + 8 Parcel + 15 bridge + 23 Monkey C checks and 77
+The current totals are 27 JVM + 8 Parcel + 19 bridge + 27 Monkey C checks and 80
 Python checks. Bridge lint has zero errors and three advisory warnings.
 
 The core tests include two small real/native-route inputs from the documented
@@ -397,3 +397,38 @@ Live delivery now uses JC1 lossless SDK byte arrays; the logical contract stays
 unchanged. See [wire.md](wire.md) for the exact format, the measured cause of live
 expiry/blinking, compatibility and alternatives. Full packet size alone is not a
 latency pass. Keep the SDK connection established before sending watch requests.
+
+
+### Destination and automatic companion startup
+
+Navigation profile settings now contain **Start Garmin junction companion**, off
+by default. Opt in per profile. A false→true following transition launches the
+SEPARATE bridge only while the OsmAnd map Activity is resumed; unavailable/missing
+bridge or background UI falls back to a manual-start message without affecting
+navigation. No Garmin SDK is added to OsmAnd.
+
+The bridge accepts automatic mode only when Android's authenticated callingPackage
+is the isolated OsmAnd package. startActivityForResult is intentionally used to
+obtain that identity without requiring both APKs to share a signing certificate;
+its result is unused. This deprecated API remains supported in our min/target
+range, but is a future migration point. An arbitrary launcher intent with an auto
+extra does not authenticate its caller. First-time normal Android permissions may
+still require interaction; automatic mode does not grant them silently.
+
+The bridge returns to OsmAnd after starting its foreground service and requests
+SDK openApplication once after SDK/device readiness. Reconnect callbacks do not arm
+new prompts; explicit starts are limited to one attempt per30s. Already-running,
+not-installed, prompt-shown and manual-open fallback states are handled. The SDK may
+require a watch confirmation; physical Garmin Connect behavior remains a separate
+gate. In debug desk mode, the DUMP-only start_tethered hook remembers deskTethered
+for automatic-start testing. stop_tethered clears it; release builds ignore it.
+This setting is only in the isolated Android test app, not a system permission.
+
+A computer restart loses SDK processes and ADB forwarding but not source/apps/maps.
+Start Waydroid session, then **show-full-ui**: a session without an Android window
+can report container FROZEN and make ADB shell commands hang. show-full-ui resumed
+it in the observed reboot recovery, without root/permission changes. Restore only
+the explicit verified Waydroid target's forward, start the visible bridge, start
+the native simulator ADB menu, verify CONNECTED, then deploy the live watch app.
+Keep the Android UI open when demonstrating both simulators. Never substitute old
+comparison replay for a requested live demo without saying so.

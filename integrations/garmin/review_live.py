@@ -18,7 +18,7 @@ from protocol.scene import validate
 
 
 def geometry_key(scene):
-    return json.dumps({k:scene[k] for k in ('geometryMode','anchors','paths','roadName','maneuver','radiusDm')},sort_keys=True,separators=(',',':'))
+    return json.dumps({k:scene[k] for k in ('geometryMode','anchors','paths','roadName','maneuver','radiusDm','destination') if k in scene},sort_keys=True,separators=(',',':'))
 
 
 def write_trace(samples, out, start=0, count=32):

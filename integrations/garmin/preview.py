@@ -38,13 +38,27 @@ def road_strokes(scene):
                     if value==level:yield selected['points'][i:i+2],color,width
 
 
+def flag_svg(x,y,cell):
+    parts=[f'<path d="M{x},{y}V{y-cell*6}" stroke="#ffd166" stroke-width="3"/>',f'<rect x="{x+1}" y="{y-cell*6-1}" width="{cell*4+2}" height="{cell*3+2}" fill="black"/>']
+    for row in range(3):
+        for col in range(4):
+            color='white' if (row+col)%2==0 else '#343a43'
+            parts.append(f'<rect x="{x+2+col*cell}" y="{y-cell*6+row*cell}" width="{cell}" height="{cell}" fill="{color}"/>')
+    return ''.join(parts)
+
+
 def watch_svg(scene):
     parts=['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 454 454" width="454" height="454">',
            '<defs><clipPath id="face"><circle cx="227" cy="227" r="226"/></clipPath><clipPath id="roads"><rect x="25" y="102" width="404" height="270"/></clipPath></defs>',
            '<rect width="454" height="454" fill="#171c25"/><g clip-path="url(#face)"><rect width="454" height="454" fill="black"/>']
     def text(x,y,label,size=20,color='white',anchor='middle'):
         parts.append(f'<text x="{x}" y="{y}" dominant-baseline="hanging" text-anchor="{anchor}" font-family="DejaVu Sans,sans-serif" font-size="{size}" fill="{color}">{html.escape(label)}</text>')
-    text(227,22,'TEST REPLAY',20,'#8ca5bf');text(227,53,str(scene['distanceM'])+' m',42)
+    text(227,22,'TEST REPLAY',20,'#8ca5bf')
+    if scene['state']=='arrived':
+        parts.append('<circle cx="227" cy="205" r="108" stroke="#ffd166" stroke-width="3" fill="none"/>')
+        parts.append(flag_svg(189,265,16));text(227,326,'ARRIVED',36);text(227,380,'Destination reached',20,'#8ca5bf')
+        return ''.join(parts)+'</g></svg>'
+    text(227,53,str(scene['distanceM'])+' m',42)
     scale=454*.33/scene['radiusDm']
     def xy(p):return 227+p[0]*scale,454*.54-p[1]*scale
     parts.append('<g clip-path="url(#roads)">')
@@ -55,6 +69,8 @@ def watch_svg(scene):
     for i,anchor in enumerate(scene['anchors']):
         x,y=xy(anchor['point']);parts.append(f'<circle cx="{x}" cy="{y}" r="6" fill="black" stroke="#ffd166" stroke-width="2"/>')
         text(x+10,y-23,str(i+1),20,anchor='start')
+    if 'destination' in scene:
+        x,y=xy(scene['destination']);parts.append(flag_svg(x,y,5))
     parts.append('</g>')
     text(227,382,scene['roadName'][:25],20)
     detail='MOTOR ROADS' if scene['geometryMode'] in ('map_context','layer_context') else 'ROUTE ONLY' if scene['geometryMode']=='route_only' else 'PARTIAL ROADS'
@@ -73,6 +89,18 @@ def png(scene, path):
         font=ImageFont.truetype(font_path,px*factor)
         draw.text((x*factor,y*factor),label,font=font,fill=color,anchor=anchor)
     text(227,22,'TEST REPLAY',20,'#8ca5bf');text(227,53,str(scene['distanceM'])+' m',42)
+    def flag(x,y,cell):
+        draw.line([(x*factor,y*factor),(x*factor,(y-cell*6)*factor)],fill='#ffd166',width=3*factor)
+        draw.rectangle(((x+1)*factor,(y-cell*6-1)*factor,(x+cell*4+3)*factor,(y-cell*3+1)*factor),fill='black')
+        for row in range(3):
+            for col in range(4):
+                left=(x+2+col*cell)*factor;top=(y-cell*6+row*cell)*factor
+                draw.rectangle((left,top,left+cell*factor-1,top+cell*factor-1),fill='white' if (row+col)%2==0 else '#343a43')
+    if scene['state']=='arrived':
+        image.paste('black',(0,45*factor,size,size))
+        draw.ellipse((119*factor,97*factor,335*factor,313*factor),outline='#ffd166',width=3*factor)
+        flag(189,265,16);text(227,326,'ARRIVED',36);text(227,380,'Destination reached',20,'#8ca5bf')
+        image.resize((454,454),Image.Resampling.LANCZOS).save(path);return
     layer=Image.new('RGB',(size,size),'black');roads=ImageDraw.Draw(layer)
     scale=454*.33/scene['radiusDm']
     def xy(p):return (227+p[0]*scale)*factor,(454*.54-p[1]*scale)*factor
@@ -83,6 +111,8 @@ def png(scene, path):
         x,y=xy(a['point']);r=6*factor
         draw.ellipse((x-r,y-r,x+r,y+r),fill='black',outline='#ffd166',width=2*factor)
         text(x/factor+10,y/factor-23,str(i+1),20,anchor='lt')
+    if 'destination' in scene:
+        x,y=xy(scene['destination']);flag(x/factor,y/factor,5)
     detail='MOTOR ROADS' if scene['geometryMode'] in ('map_context','layer_context') else 'ROUTE ONLY' if scene['geometryMode']=='route_only' else 'PARTIAL ROADS'
     text(227,382,scene['roadName'][:25]);text(227,414,detail,20,'#8ca5bf')
     mask=Image.new('L',(size,size));ImageDraw.Draw(mask).ellipse((factor,factor,size-factor,size-factor),fill=255)

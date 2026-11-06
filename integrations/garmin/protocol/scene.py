@@ -7,7 +7,7 @@ MAX_PATHS = 8
 MAX_PATH_POINTS = 24
 MAX_POINTS = 96
 MAX_RADIUS_DM = 2000
-STATES = {"active", "idle", "recalculating", "unavailable"}
+STATES = {"active", "idle", "recalculating", "unavailable", "arrived"}
 MODES = {"routing_branches", "map_context", "layer_context", "route_only", "unavailable"}
 
 
@@ -89,4 +89,9 @@ def validate(scene):
     if active_geometry and (selected != 1 or not anchors): errors.append("missing selected path/anchor")
     if not active_geometry and (paths or anchors): errors.append("inactive state must clear geometry")
     if scene.get("geometryMode") == "route_only" and any(not isinstance(p,dict) or p.get("role") != "selected" for p in paths): errors.append("route_only contains branches")
+    if scene.get('state')=='arrived' and (scene.get('geometryMode')!='unavailable' or scene.get('distanceM')!=0):errors.append('arrival')
+    if 'destination' in scene:
+        chosen=[p for p in paths if isinstance(p,dict) and p.get('role')=='selected']
+        if (not active_geometry or not valid_point(scene['destination'],radius) or len(chosen)!=1
+            or not chosen[0].get('points') or chosen[0]['points'][-1]!=scene['destination']):errors.append('destination')
     return errors

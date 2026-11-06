@@ -40,7 +40,8 @@
         "active",
         "idle",
         "recalculating",
-        "unavailable"
+        "unavailable",
+        "arrived"
       ]
     },
     "geometryMode": {
@@ -177,6 +178,9 @@
           }
         }
       }
+    },
+    "destination": {
+      "$ref": "#/$defs/point"
     }
   },
   "dependentRequired": {
@@ -305,6 +309,50 @@
         "properties": {
           "paths": {
             "maxItems": 32
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "destination"
+        ]
+      },
+      "then": {
+        "properties": {
+          "state": {
+            "const": "active"
+          },
+          "geometryMode": {
+            "not": {
+              "const": "unavailable"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "arrived"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "geometryMode": {
+            "const": "unavailable"
+          },
+          "distanceM": {
+            "const": 0
+          },
+          "paths": {
+            "maxItems": 0
+          },
+          "anchors": {
+            "maxItems": 0
           }
         }
       }

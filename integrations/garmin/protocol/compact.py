@@ -1,8 +1,10 @@
 """Reference for JC1 lossless SDK byte-array transport; logical contracts unchanged."""
-WORDS=['active','idle','recalculating','unavailable','map_context','layer_context','routing_branches','route_only','selected','branch','context','motorcycle road context; intersections do not imply connectivity','motorcycle road context with level ordering']+[f'j{i}' for i in range(4)]+[f'c{i}' for i in range(1,41)]
+WORDS=['active','idle','recalculating','unavailable','map_context','layer_context','routing_branches','route_only','selected','branch','context','motorcycle road context; intersections do not imply connectivity','motorcycle road context with level ordering']+[f'j{i}' for i in range(4)]+[f'c{i}' for i in range(1,41)]+['arrived']
 
 
-def encode(reply):
+def encode(reply,version=2):
+    if version not in (1,2):raise ValueError('version')
+    if version==1 and (reply.get('scene',{}).get('state')=='arrived' or 'destination' in reply.get('scene',{})):raise ValueError('version 1 extension')
     data=bytearray()
     def u(n):
         if type(n) is not int or not 0<=n<=2_000_000:raise ValueError('integer')
@@ -10,12 +12,13 @@ def encode(reply):
         data.append(n)
     def s(n):u(-2*n-1 if n<0 else 2*n)
     def text(v):
-        token=WORDS.index(v)+1 if v in WORDS else 0;u(token)
+        pool=WORDS[:-1] if version==1 else WORDS
+        token=pool.index(v)+1 if v in pool else 0;u(token)
         if not token:
             raw=v.encode('utf-8')
             if len(raw)>320:raise ValueError('string')
             u(len(raw));data.extend(raw)
-    for n in (74,67,1,int(reply['kind']=='junction_unavailable')):u(n)
+    for n in (74,67,version,int(reply['kind']=='junction_unavailable')):u(n)
     text(reply['epoch']);u(reply['requestId'])
     if reply['kind']=='junction_unavailable':text(reply['reason'])
     else:
@@ -37,6 +40,9 @@ def encode(reply):
                 s(p['layer'])
                 if p['role']=='selected':
                     for n in p['segmentLayers']:s(n)
+        if version==2:
+            u(int('destination' in v))
+            if 'destination' in v:s(v['destination'][0]);s(v['destination'][1])
     if len(data)>8192:raise ValueError('byte bound')
     return bytes(data)
 
@@ -62,12 +68,14 @@ def decode(data):
         return n
     def text():
         nonlocal at
-        token=count(len(WORDS))
+        token=count(len(WORDS)-(version==1))
         if token:return WORDS[token-1]
         n=count(320)
         if at+n>len(data):raise ValueError('truncated')
         result=data[at:at+n].decode('utf-8');at+=n;return result
-    if [u(),u(),u()]!=[74,67,1]:raise ValueError('version')
+    if [u(),u()]!=[74,67]:raise ValueError('magic')
+    version=u()
+    if version not in (1,2):raise ValueError('version')
     kind=count(1);reply={'version':1,'kind':'junction_unavailable' if kind else 'junction_snapshot','epoch':text(),'requestId':u()}
     if kind:reply['reason']=text()
     else:
@@ -94,5 +102,6 @@ def decode(data):
                 if p['role']=='selected':p['segmentLayers']=[s() for _ in range(size-1)]
             paths.append(p)
         v.update(anchors=anchors,paths=paths);reply['scene']=v
+        if version==2 and count(1):v['destination']=[s(),s()]
     if at!=len(data):raise ValueError('trailing')
     return reply

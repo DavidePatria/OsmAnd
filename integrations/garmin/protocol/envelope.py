@@ -1,7 +1,7 @@
 """V1 request/response validation. Local timers enforce deadlines outside the wire schema."""
 from .scene import integer, validate as validate_scene
 
-DISPLAY_STATES={"active","idle","recalculating","unavailable","stale_source","stale_transport"}
+DISPLAY_STATES={"active","idle","recalculating","unavailable","arrived","stale_source","stale_transport"}
 
 
 def header(value, kinds):

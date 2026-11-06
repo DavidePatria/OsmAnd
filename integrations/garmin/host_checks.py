@@ -11,7 +11,7 @@ def check(dev,cfg,out,suite):
     if suite=='geometry':
         task=':OsmAnd-java:test';pattern='net.osmand.router.junction.*'
         reports=dev.REPO_ROOT/'OsmAnd-java/build/test-results/test'
-        files='TEST-net.osmand.router.junction.*.xml';minimum=25
+        files='TEST-net.osmand.router.junction.*.xml';minimum=27
     elif suite=='api':
         task=':OsmAnd-api:testDebugUnitTest';pattern='net.osmand.aidlapi.info.AppInfoNavigationSnapshotTest'
         reports=dev.REPO_ROOT/'OsmAnd-api/build/test-results/testDebugUnitTest'
@@ -19,7 +19,7 @@ def check(dev,cfg,out,suite):
     elif suite=='bridge':
         task='testDebugUnitTest';pattern='net.osmand.junction.bridge.*'
         reports=dev.TOOL_DIR/'bridge/build/test-results/testDebugUnitTest'
-        files='TEST-net.osmand.junction.bridge.*.xml';minimum=15
+        files='TEST-net.osmand.junction.bridge.*.xml';minimum=19
     else:raise ValueError('unknown host suite')
     command=[str(dev.REPO_ROOT/'gradlew'),'-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8','--max-workers=2',task,'--tests',pattern,'--console=plain']
     if suite=='bridge':

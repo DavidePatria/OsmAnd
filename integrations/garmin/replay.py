@@ -232,7 +232,7 @@ def check_watch(dev,cfg,out_dir):
             client=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
         code=client.wait(timeout=60)
         text=(out_dir/'tests.log').read_text(errors='replace')
-        ok,count=watch_test_result(text,code,minimum=23)
+        ok,count=watch_test_result(text,code,minimum=27)
         report.update(status='pass' if ok else 'fail',exit_code=code,tests=count,command=command,
                       verdict_basis='complete SDK summary; exit 1 calibrated against known pass and known fail on SDK 9.3.0')
     except (OSError,RuntimeError,subprocess.TimeoutExpired) as error:report['reason']=str(error)

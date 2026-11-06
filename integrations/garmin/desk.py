@@ -20,7 +20,7 @@ import route_probe
 
 OSMAND = route_probe.PACKAGE
 BRIDGE = 'net.osmand.junction.bridge.debug'
-OPERATIONS = ('state', 'start', 'stop', 'pause', 'resume', 'freeze', 'cancel', 'detour', 'reload', 'grant_bridge', 'deny_bridge')
+OPERATIONS = ('state', 'start', 'stop', 'pause', 'resume', 'freeze', 'cancel', 'detour', 'reload', 'grant_bridge', 'deny_bridge', 'enable_auto_start', 'disable_auto_start')
 BRIDGE_OPERATIONS = ('start_tethered', 'stop_tethered')
 
 

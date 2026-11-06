@@ -1,4 +1,4 @@
-# Compact SDK transport (JC1)
+# Compact SDK transport (JC1 / JC2)
 
 This is a lossless encoding at the Garmin SDK boundary. OsmAnd's API JSON and the
 logical scene/envelope contract are unchanged. Android `CompactWire` emits a
@@ -53,7 +53,7 @@ roles, the two standard context reasons, j0…j3 and c1…c40. Changing existing
 requires a NEW format version. No lossy shortening or coordinate quantization is
 introduced by this codec.
 
-- Header: 74, 67, 1 (JC/version), reply type (0 snapshot / 1 unavailable), epoch,
+- Header: 74, 67, format version (1 or 2), reply type (0 snapshot / 1 unavailable), epoch,
   requestId. The restored logical envelope has `version:1` and the ordinary kind.
 - Unavailable: reason string, then end.
 - Snapshot: session; generation, seq; strings state, geometryMode, reason, roadName,
@@ -92,3 +92,27 @@ A source with no valid maneuver can legitimately return unavailable instead of
 idle: a positive decoded sequence proves delivery, not a particular source state.
 A send-success callback alone does not prove drawing; require actual watch draws
 and subsequent matching Android DRAW_ACK events.
+
+## Version 2: destination and native arrival
+
+The sender now emits JC2. The watch still decodes JC1 and legacy dictionary replies.
+The existing string-table indexes remain fixed; `arrived` is appended at index58.
+After the LAST path in a JC2 snapshot comes a 0/1 destination flag; if1, signed x/y
+follow. Negative replies have no new suffix. JC1 has neither the suffix nor token58.
+Unknown versions are rejected. The logical scene stays version1; old strict clients
+reject new state/physical formats instead of displaying them incorrectly.
+
+The optional destination must equal the selected path's last point, be inside the
+scene circle and appear only with active geometry. The shared Java input preserves
+the native GLOBAL destination index through route windows; clipped window ends are
+never labeled as destinations. A marker is emitted only when the ACTUAL route end
+is present and within75 along-route meters of the next anchor. It represents the
+routed endpoint, which may be snapped to a road, not arbitrary input coordinates.
+
+The Android exporter reads RoutingHelper.isRouteWasFinished(), an existing native
+arrival flag set by finishCurrentRoute AFTER ordinary route clearing. Cancellation
+and new route setup clear that flag. An `arrived` snapshot has distance0 and no
+roads/anchors/destination field. The watch draws a vector checkered flag and ARRIVED.
+An old GPS fix is irrelevant to a completed journey; arrival still requires fresh
+source heartbeat/transport (unchanged5s/3s bounds), and cannot survive disconnect.
+This is an arrival result, not a watch-side guess based on zero junction distance.
