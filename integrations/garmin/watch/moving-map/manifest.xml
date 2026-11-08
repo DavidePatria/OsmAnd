@@ -1,0 +1,6 @@
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <iq:application entry="MovingMapApp" id="4e9848da-b273-48f2-bb7e-fc86af8dad38" launcherIcon="@Drawables.LauncherIcon" minSdkVersion="6.0.0" name="@Strings.AppName" type="watch-app">
+        <iq:products><iq:product id="fr970"/></iq:products>
+        <iq:permissions><iq:uses-permission id="Positioning"/></iq:permissions>
+    </iq:application>
+</iq:manifest>

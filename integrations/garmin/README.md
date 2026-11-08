@@ -82,7 +82,8 @@ The first simulator start may require Linux desktop/network access unavailable i
 Implemented checks: `protocol|geometry|api|bridge|watch`; implemented watch builds:
 `watch` (legacy echo), `navigation-watch` (real input), and `datafield` (activity
 data screen). See [DATA_FIELD.md](DATA_FIELD.md) for its setup and verification
-limits. `run --mode replay` and
+limits. The independent Garmin map experiment is documented in
+[MOVING_MAP.md](MOVING_MAP.md). `run --mode replay` and
 `navigation-smoke` work. `all`, `desk` and `iterate` orchestration remain explicitly
 unimplemented; the Android app builds through its verified Gradle task.
 

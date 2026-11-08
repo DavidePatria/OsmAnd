@@ -764,11 +764,11 @@ def main(argv):
     p_doctor.add_argument("--out", default="build/garmin-review/doctor", help="output directory (repo-relative)")
     p_doctor.add_argument("--config", help="local config JSON (see dev-config.example.json)")
     p_build = sub.add_parser("build", help="build an implementation target")
-    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "datafield", "all"))
+    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "datafield", "moving-map", "all"))
     p_build.add_argument("--out", default="build/garmin-review/build")
     p_build.add_argument("--config", help="private local config JSON")
     p_run = sub.add_parser("run", help="run an implementation scenario")
-    p_run.add_argument("--mode", required=True, choices=("watch-smoke", "navigation-smoke", "capacity-smoke", "echo-prepare", "echo-smoke", "replay", "desk"))
+    p_run.add_argument("--mode", required=True, choices=("watch-smoke", "navigation-smoke", "capacity-smoke", "moving-map", "echo-prepare", "echo-smoke", "replay", "desk"))
     p_run.add_argument("--out", default="build/garmin-review/watch-smoke")
     p_run.add_argument("--config", help="private local config JSON")
     p_run.add_argument("--timeout", type=float, default=45, help="runtime timeout in seconds")
@@ -816,15 +816,21 @@ def main(argv):
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
         return check(sys.modules[__name__],cfg,out_dir,args.suite)
-    if args.command == "build" and args.target in ("navigation-watch", "datafield"):
+    if args.command == "build" and args.target in ("navigation-watch", "datafield", "moving-map"):
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
-        jungle = "datafield.jungle" if args.target == "datafield" else "navigation.jungle"
+        jungle = {"datafield":"datafield.jungle", "moving-map":"moving-map/monkey.jungle"}.get(args.target,"navigation.jungle")
         return build_watch(cfg,out_dir,jungle=TOOL_DIR/"watch"/jungle)
     if args.command == "run" and args.mode == "navigation-smoke":
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
         return watch_smoke(cfg,out_dir,args.timeout,navigation=True)
+    if args.command == "run" and args.mode == "moving-map":
+        if args.timeout <= 0: parser.error("--timeout must be positive")
+        from moving_map import run
+        out_dir=Path(args.out)
+        if not out_dir.is_absolute(): out_dir=REPO_ROOT/out_dir
+        return run(sys.modules[__name__],cfg,out_dir,args.timeout,args.hold)
     if args.command == "run" and args.mode == "capacity-smoke":
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
