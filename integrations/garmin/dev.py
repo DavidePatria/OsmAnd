@@ -764,7 +764,7 @@ def main(argv):
     p_doctor.add_argument("--out", default="build/garmin-review/doctor", help="output directory (repo-relative)")
     p_doctor.add_argument("--config", help="local config JSON (see dev-config.example.json)")
     p_build = sub.add_parser("build", help="build an implementation target")
-    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "all"))
+    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "datafield", "all"))
     p_build.add_argument("--out", default="build/garmin-review/build")
     p_build.add_argument("--config", help="private local config JSON")
     p_run = sub.add_parser("run", help="run an implementation scenario")
@@ -781,7 +781,7 @@ def main(argv):
     p_run.add_argument("--maneuver", type=int, help="original maneuver index in the supplied capture")
     p_run.add_argument("--hold", action="store_true", help="hold the first replay scene; Start/Select toggles playback")
     p_check = sub.add_parser("check", help="run actual scene/protocol or watch tests")
-    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "geometry", "api", "bridge", "all"))
+    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "datafield", "geometry", "api", "bridge", "all"))
     p_check.add_argument("--out", default="build/garmin-review/check")
     p_check.add_argument("--config")
     for name in ("iterate",):
@@ -805,21 +805,22 @@ def main(argv):
         if not out_dir.is_absolute():
             out_dir = REPO_ROOT / out_dir
         return doctor(cfg, out_dir)
-    if args.command == "check" and args.suite in ("protocol", "watch"):
+    if args.command == "check" and args.suite in ("protocol", "watch", "datafield"):
         from replay import check_protocol, check_watch
         out_dir=Path(args.out)
         if not out_dir.is_absolute(): out_dir=REPO_ROOT/out_dir
         if args.suite == "protocol": return check_protocol(sys.modules[__name__],out_dir)
-        return check_watch(sys.modules[__name__],cfg,out_dir)
+        return check_watch(sys.modules[__name__],cfg,out_dir,field=args.suite == "datafield")
     if args.command == "check" and args.suite in ("geometry", "api", "bridge"):
         from host_checks import check
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
         return check(sys.modules[__name__],cfg,out_dir,args.suite)
-    if args.command == "build" and args.target == "navigation-watch":
+    if args.command == "build" and args.target in ("navigation-watch", "datafield"):
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
-        return build_watch(cfg,out_dir,jungle=TOOL_DIR/"watch/navigation.jungle")
+        jungle = "datafield.jungle" if args.target == "datafield" else "navigation.jungle"
+        return build_watch(cfg,out_dir,jungle=TOOL_DIR/"watch"/jungle)
     if args.command == "run" and args.mode == "navigation-smoke":
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir

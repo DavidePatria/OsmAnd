@@ -1,4 +1,6 @@
 <resources>
+    <string name="navigation_data_field">Use activity data screen</string>
+    <string name="navigation_restart_mode">Start the connection for the selected watch screen.</string>
     <string name="diagnostics_explanation">Diagnostics are optional. The most recent events are stored privately on this phone, including junction shapes and timing, but no GPS coordinates or road names. Export a recording after a ride to share it.</string>
     <string name="diagnostics_record">Record diagnostics</string>
     <string name="diagnostics_replace">Starting a new recording deletes the previous local recording. Export it first if you want to keep it.</string>

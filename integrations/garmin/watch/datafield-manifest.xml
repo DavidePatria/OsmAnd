@@ -1,0 +1,7 @@
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <!-- Separate stable identity: this data field can coexist with the watch app. -->
+    <iq:application entry="JunctionFieldApp" id="5ee36e99-bc89-44a2-b026-040cd9e77f35" launcherIcon="@Drawables.LauncherIcon" minApiLevel="6.0.0" name="@Strings.AppName" type="datafield">
+        <iq:products><iq:product id="fr970"/></iq:products>
+        <iq:permissions><iq:uses-permission id="Communications"/><iq:uses-permission id="Background"/></iq:permissions>
+    </iq:application>
+</iq:manifest>

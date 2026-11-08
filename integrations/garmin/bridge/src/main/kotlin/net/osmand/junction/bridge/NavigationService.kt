@@ -22,7 +22,8 @@ class NavigationService:Service() {
     private val launchGate=WatchLaunchGate()
     private var sdk:ConnectIQ?=null
     private var device:IQDevice?=null
-    private val watch=IQApp(EchoActivity.WATCH_APP_ID)
+    private var watch=IQApp(EchoActivity.WATCH_APP_ID)
+    private var dataField=false
     @Volatile private var source:IOsmAndAidlInterface?=null
     private var bound=false
     @Volatile private var active=true
@@ -57,7 +58,15 @@ class NavigationService:Service() {
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         if(intent?.action==STOP) { stopSelf();return START_NOT_STICKY }
         if(!foreground)return START_NOT_STICKY
-        if(intent?.getBooleanExtra("request_watch_open",false)==true)launchGate.request()
+        val requestedField=prefs.getBoolean("dataField",false)
+        if(sdk!=null && requestedField!=dataField) {
+            status(R.string.navigation_restart_mode,"MODE_CHANGE_RESTART_REQUIRED");stopSelf();return START_NOT_STICKY
+        }
+        if(sdk==null) {
+            dataField=requestedField
+            watch=IQApp(WatchTarget.appId(dataField))
+        }
+        if(WatchTarget.shouldPrompt(dataField,intent?.getBooleanExtra("request_watch_open",false)==true))launchGate.request()
         if(sdk==null) {
             tethered=intent?.getStringExtra("transport")=="tethered"
             bindSource()
@@ -111,6 +120,7 @@ class NavigationService:Service() {
         } catch(error:Exception) { status(R.string.navigation_garmin_unavailable,"REGISTER_ERROR ${error.javaClass.simpleName}") }
     }
     private fun requestWatchOpen() {
+        if(dataField)return
         val instance=sdk ?: return
         val target=device ?: return
         try {
@@ -222,6 +232,7 @@ class NavigationService:Service() {
     companion object {
         const val PREFS="navigation"
         const val OSMAND="net.osmand.plus.junction"
+        const val DATA_FIELD_APP_ID="5ee36e99bc8944a2b026040cd9e77f35"
         private const val CHANNEL="watch-navigation"
         private const val STOP="net.osmand.junction.bridge.STOP"
     }

@@ -80,7 +80,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s integrations/garmin/te
 The first simulator start may require Linux desktop/network access unavailable inside a restricted runner. On this host, sandboxed ADB also cannot open its local server socket. Run the same commands in the authorized host environment; do not substitute a mocked success.
 
 Implemented checks: `protocol|geometry|api|bridge|watch`; implemented watch builds:
-`watch` (legacy echo) and `navigation-watch` (real input). `run --mode replay` and
+`watch` (legacy echo), `navigation-watch` (real input), and `datafield` (activity
+data screen). See [DATA_FIELD.md](DATA_FIELD.md) for its setup and verification
+limits. `run --mode replay` and
 `navigation-smoke` work. `all`, `desk` and `iterate` orchestration remain explicitly
 unimplemented; the Android app builds through its verified Gradle task.
 

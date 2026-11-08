@@ -6,6 +6,7 @@ class JunctionRenderer {
     function initialize() {}
     function draw(dc as Dc, state as NavigationState, now as Number, paused as Boolean) as Void {
         dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.clear();
+        var heightScale=dc.getHeight()/454.0, widthScale=dc.getWidth()/454.0;
         if (REPLAY_MODE) {
             dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
             dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,paused?"TEST REPLAY - PAUSED":"TEST REPLAY",Graphics.TEXT_JUSTIFY_CENTER);
@@ -13,12 +14,12 @@ class JunctionRenderer {
         var status=state.status(now), scene=state.scene();
         if(status.equals("arrived")) {
             dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(3);
-            dc.drawCircle(dc.getWidth()/2,205,108);
-            flag(dc,dc.getWidth()/2-38,265,16);
+            dc.drawCircle(dc.getWidth()/2,205*heightScale,108*(heightScale<widthScale?heightScale:widthScale));
+            flag(dc,dc.getWidth()/2-38*widthScale,265*heightScale,16);
             dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
-            dc.drawText(dc.getWidth()/2,326,Graphics.FONT_MEDIUM,"ARRIVED",Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(dc.getWidth()/2,326*heightScale,Graphics.FONT_MEDIUM,"ARRIVED",Graphics.TEXT_JUSTIFY_CENTER);
             dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
-            dc.drawText(dc.getWidth()/2,380,Graphics.FONT_XTINY,"Destination reached",Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(dc.getWidth()/2,380*heightScale,Graphics.FONT_XTINY,"Destination reached",Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
         if (!status.equals("active") || scene==null || scene["geometryMode"].equals("unavailable")) {
@@ -30,13 +31,14 @@ class JunctionRenderer {
                 label=scene!=null && scene["reason"].equals("geometry pending")?"LOADING JUNCTION":"DETAIL LIMITED";
             }
             dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
-            dc.drawText(dc.getWidth()/2,195,Graphics.FONT_MEDIUM,label,Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(dc.getWidth()/2,195*heightScale,Graphics.FONT_MEDIUM,label,Graphics.TEXT_JUSTIFY_CENTER);
             dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
             var explanation=REPLAY_MODE?"Recorded test input":(label.equals("LOADING JUNCTION")?"Preparing road detail":"Waiting for phone");
-            dc.drawText(dc.getWidth()/2,365,Graphics.FONT_XTINY,explanation,Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(dc.getWidth()/2,365*heightScale,Graphics.FONT_XTINY,explanation,Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
-        var cx=dc.getWidth()/2, cy=dc.getHeight()/2, scale=dc.getWidth()*0.50/scene["radiusDm"];
+        var cx=dc.getWidth()/2, cy=dc.getHeight()/2, extent=dc.getWidth()<dc.getHeight()?dc.getWidth():dc.getHeight();
+        var scale=extent*0.50/scene["radiusDm"];
         var paths=scene["paths"], selected=null;
         if (scene["geometryMode"].equals("layer_context")) {
             layeredPaths(dc,paths,cx,cy,scale);
@@ -69,15 +71,15 @@ class JunctionRenderer {
             dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,paused?"TEST REPLAY - PAUSED":"TEST REPLAY",Graphics.TEXT_JUSTIFY_CENTER);
         }
         dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
-        dc.drawText(dc.getWidth()/2,REPLAY_MODE?53:25,Graphics.FONT_MEDIUM,state.displayDistance(now)+" m",Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(dc.getWidth()/2,(REPLAY_MODE?53:25)*heightScale,Graphics.FONT_MEDIUM,state.displayDistance(now)+" m",Graphics.TEXT_JUSTIFY_CENTER);
         var name=scene["roadName"];
         // Use the device font metrics, not a guessed character count, to fit a round display.
-        while (name.length()>0 && dc.getTextWidthInPixels(name,Graphics.FONT_XTINY)>310) { name=name.substring(0,name.length()-1); }
-        dc.drawText(dc.getWidth()/2,382,Graphics.FONT_XTINY,name,Graphics.TEXT_JUSTIFY_CENTER);
+        while (name.length()>0 && dc.getTextWidthInPixels(name,Graphics.FONT_XTINY)>310*widthScale) { name=name.substring(0,name.length()-1); }
+        dc.drawText(dc.getWidth()/2,382*heightScale,Graphics.FONT_XTINY,name,Graphics.TEXT_JUSTIFY_CENTER);
         if (!scene["geometryMode"].equals("map_context") && !scene["geometryMode"].equals("layer_context")) {
             dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
             var detail=scene["geometryMode"].equals("route_only")?"ROUTE ONLY":"PARTIAL ROADS";
-            dc.drawText(dc.getWidth()/2,414,Graphics.FONT_XTINY,detail,Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(dc.getWidth()/2,414*heightScale,Graphics.FONT_XTINY,detail,Graphics.TEXT_JUSTIFY_CENTER);
         }
     }
     //! Pole foot is the actual destination; checkerboard extends above/right.

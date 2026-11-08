@@ -16,7 +16,10 @@ class NavigationRequestGate {
         return {"version"=>1,"kind"=>"junction_request","epoch"=>_epoch,"requestId"=>_pending};
     }
     function abandon(id as Number) as Void { if (id==_pending) { _pending=0; } }
-    function accept(value as Object?, now as Number, state as NavigationState) as Boolean {
+    function accept(value as Object?, now as Number, state as NavigationState) as Boolean { return acceptInternal(value,now,state,false); }
+    //! Accept only a newly decoded compact packet that no other caller retains.
+    function acceptOwned(value as Object?, now as Number, state as NavigationState) as Boolean { return acceptInternal(value,now,state,true); }
+    private function acceptInternal(value as Object?, now as Number, state as NavigationState, owned as Boolean) as Boolean {
         if (!(value instanceof Dictionary) || !SceneDecoder.integer(value["version"],1,1) ||
             !(value["kind"] instanceof String) || !(value["kind"].equals("junction_snapshot") || value["kind"].equals("junction_unavailable")) ||
             !(value["epoch"] instanceof String) || !value["epoch"].equals(_epoch) ||
@@ -25,14 +28,14 @@ class NavigationRequestGate {
             if (!(value["reason"] instanceof String) || value["reason"].length()>80) { return false; }
             state.invalidate();_pending=0;return true;
         }
-        var decoded=SceneDecoder.decode(value["scene"]);
+        var decoded=owned?SceneDecoder.decodeOwned(value["scene"]):SceneDecoder.decode(value["scene"]);
         if (decoded==null) { return false; }
         var roundTrip=now-_sentAt;
         var ages=["sourceAgeMs","fixAgeMs","progressAgeMs"];
         for (var i=0;i<ages.size();i+=1) {
             var age=decoded[ages[i]]+roundTrip;decoded[ages[i]]=age>60000?60000:age;
         }
-        if (!state.accept(decoded,now)) { return false; }
+        if (!(owned?state.acceptOwned(decoded,now):state.accept(decoded,now))) { return false; }
         _pending=0;return true;
     }
 }

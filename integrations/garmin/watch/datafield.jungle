@@ -1,0 +1,3 @@
+project.manifest = datafield-manifest.xml
+base.resourcePath = resources
+base.sourcePath = datafield;source/NavigationState.mc;source/CompactWire.mc;source/NavigationRequestGate.mc;source/JunctionAlert.mc;source/JunctionRenderer.mc

@@ -52,6 +52,16 @@ class NavigationActivity : Activity() {
         val layout=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL;setPadding(24,48,24,24) }
         layout.addView(TextView(this).apply { text=getString(R.string.navigation_explanation);textSize=18f })
         status=TextView(this).apply { textSize=18f;setPadding(0,24,0,24) };layout.addView(status)
+        val prefs=getSharedPreferences(NavigationService.PREFS,MODE_PRIVATE)
+        layout.addView(Switch(this).apply {
+            text=getString(R.string.navigation_data_field)
+            isChecked=prefs.getBoolean("dataField",false)
+            setOnCheckedChangeListener { _,checked ->
+                prefs.edit().putBoolean("dataField",checked).apply()
+                stopService(Intent(this@NavigationActivity,NavigationService::class.java))
+                status.text=getString(R.string.navigation_restart_mode)
+            }
+        })
         layout.addView(Button(this).apply { text=getString(R.string.navigation_start);setOnClickListener { startBridge() } })
         layout.addView(Button(this).apply { text=getString(R.string.navigation_stop);setOnClickListener {
             stopService(Intent(this@NavigationActivity,NavigationService::class.java))

@@ -169,3 +169,15 @@ function incompleteOrLegacyLayerMetadataIsRejected(logger as Test.Logger) as Boo
     scene["destination"][0]+=1;
     return decoded["destination"][0]==end[0] && SceneDecoder.decode(scene)==null;
 }
+
+(:test)
+function ownedCompactSceneStillValidatesAndRejectsStaleUpdates(logger as Test.Logger) as Boolean {
+    var state=new NavigationState(),s=testScene();
+    if(!state.acceptOwned(s,100) || state.scene()["distanceM"]!=100) { return false; }
+    var stale=testScene();stale["distanceM"]=9;
+    if(state.acceptOwned(stale,200) || state.scene()["distanceM"]!=100) { return false; }
+    var bad=testScene();bad["seq"]=2;bad["paths"][0]["points"][0]=[3000,3000];
+    if(state.acceptOwned(bad,300) || state.scene()["distanceM"]!=100) { return false; }
+    var newer=testScene();newer["seq"]=2;newer["distanceM"]=55;
+    return state.acceptOwned(newer,400) && state.scene()["distanceM"]==55;
+}

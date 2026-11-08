@@ -13,7 +13,11 @@ module SceneDecoder {
         return integer(value[0], -radius, radius) && integer(value[1], -radius, radius) &&
             value[0]*value[0] + value[1]*value[1] <= radius*radius;
     }
-    function decode(value as Object?) as Dictionary? {
+    function decode(value as Object?) as Dictionary? { return decodeWithOwnership(value,false); }
+    //! Only for freshly decoded, exclusively owned compact packets. Callers must
+    //! not retain or mutate the decoded packet after transferring ownership.
+    function decodeOwned(value as Object?) as Dictionary? { return decodeWithOwnership(value,true); }
+    function decodeWithOwnership(value as Object?, owned as Boolean) as Dictionary? {
         if (!(value instanceof Dictionary)) { return null; }
         var required = ["version","session","generation","seq","state","geometryMode","reason","distanceM","roadName","maneuver","radiusDm","sourceAgeMs","fixAgeMs","anchors","paths"];
         for (var i=0; i<required.size(); i+=1) { if (!value.hasKey(required[i])) { return null; } }
@@ -68,10 +72,10 @@ module SceneDecoder {
                     }
                 } else if (p.hasKey("segmentLayers")) { return null; }
             } else if (p.hasKey("layer") || p.hasKey("segmentLayers")) { return null; }
-            var normalizedPoints=[], normalizedLinks=[], linked={};
+            var normalizedPoints=owned?points:[], normalizedLinks=[], linked={};
             for (var j=0; j<points.size(); j+=1) {
                 if (!point(points[j],radius)) { return null; }
-                normalizedPoints.add([points[j][0],points[j][1]]);
+                if (!owned) { normalizedPoints.add([points[j][0],points[j][1]]); }
             }
             for (var j=0; j<links.size(); j+=1) {
                 var ref=links[j];
@@ -123,6 +127,14 @@ class NavigationState {
 
     function accept(value as Object?, now as Number) as Boolean {
         var scene=SceneDecoder.decode(value);
+        return acceptScene(scene,now);
+    }
+    //! Input must be freshly decoded and exclusively owned by this state.
+    function acceptOwned(value as Object?, now as Number) as Boolean {
+        var scene=SceneDecoder.decodeOwned(value);
+        return acceptScene(scene,now);
+    }
+    private function acceptScene(scene as Dictionary?,now as Number) as Boolean {
         if (scene==null) { return false; }
         if (_generation>=0 && _session.equals(scene["session"])) {
             if (scene["generation"]<_generation || (scene["generation"]==_generation && scene["seq"]<=_seq)) { return false; }

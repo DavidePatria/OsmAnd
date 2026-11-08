@@ -216,13 +216,17 @@ def check_protocol(dev,out_dir):
     return 0 if ok else 1
 
 
-def check_watch(dev,cfg,out_dir):
+def check_watch(dev,cfg,out_dir,field=False):
     import re
     out_dir.mkdir(parents=True,exist_ok=True)
     watch=dev.TOOL_DIR/'watch';jungle=out_dir.resolve()/'tests.jungle'
-    jungle.write_text('project.manifest = '+json.dumps(str(watch/'manifest.xml'))+'\nbase.resourcePath = '+json.dumps(str(watch/'resources'))+
-                      '\nbase.sourcePath = '+ ';'.join(json.dumps(str(p)) for p in [watch/'source',watch/'live',watch/'tests'])+'\n')
-    report={'suite':'actual-monkey-c-state-tests','status':'fail'};client=None
+    sources = ([watch/'datafield'] + [watch/'source'/name for name in
+               ('NavigationState.mc','CompactWire.mc','NavigationRequestGate.mc','JunctionAlert.mc','JunctionRenderer.mc')] + [watch/'tests']
+               if field else [watch/'source',watch/'live',watch/'tests'])
+    manifest = 'datafield-manifest.xml' if field else 'manifest.xml'
+    jungle.write_text('project.manifest = '+json.dumps(str(watch/manifest))+'\nbase.resourcePath = '+json.dumps(str(watch/'resources'))+
+                      '\nbase.sourcePath = '+ ';'.join(json.dumps(str(p)) for p in sources)+'\n')
+    report={'suite':'actual-monkey-c-field-state-tests' if field else 'actual-monkey-c-state-tests','status':'fail'};client=None
     try:
         if dev.build_watch(cfg,out_dir/'build',jungle=jungle,unit_tests=True):raise RuntimeError('unit-test compilation failed')
         build=json.loads((out_dir/'build/build.json').read_text())
