@@ -31,7 +31,7 @@ def validate(scene):
     if not isinstance(scene.get("state"),str) or scene["state"] not in STATES: errors.append("state")
     if not isinstance(scene.get("geometryMode"),str) or scene["geometryMode"] not in MODES: errors.append("geometryMode")
     full_context=scene.get("geometryMode") in ("map_context","layer_context")
-    max_paths,max_path_points,max_points=(32,48,512) if full_context else (MAX_PATHS,MAX_PATH_POINTS,MAX_POINTS)
+    max_paths,max_path_points,max_points=(40,48,512) if full_context else (MAX_PATHS,MAX_PATH_POINTS,MAX_POINTS)
     if scene.get("geometryMode")=="layer_context":max_paths=40
     for key in ("sourceAgeMs", "fixAgeMs"):
         if not integer(scene.get(key), 0, 60_000): errors.append(key)

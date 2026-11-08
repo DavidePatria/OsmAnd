@@ -1,5 +1,8 @@
 # Garmin junction companion — development setup
 
+For the fixed five-route live Waydroid + Garmin endurance suite, preparation,
+launch commands and result interpretation, see [SIMULATOR_TESTS.md](SIMULATOR_TESTS.md).
+
 Authoritative sequence: [plan](../../tasks/plan.md), [status](../../tasks/todo.md), [verification](../../tasks/verification.md). Geometry, optional export and bridge/watch delivery code now build and pass host/simulator checks. Actual phone progress, permissions, Binder lifecycle and physical Garmin/Bluetooth integration are not verified.
 
 ## Locked source and build inputs
@@ -129,7 +132,9 @@ routes. Map IO/simplification use one worker, never the routing lock/shared read
 The optional snapshot wrapper and live envelope are documented in [contract.md](contract.md).
 The bridge decodes bounded source snapshots and adds API age; the watch checks
 request ID/epoch/deadline and conservatively adds its round trip. Live anticipation
-is currently disabled pending timestamp verification; recorded tests exercise it.
+uses valid speed only when fix and projection timestamps match, capped at one
+second; see [contract.md](contract.md) for the physical-simulation evidence and
+remaining real-GPS gate.
 
 `navigation-smoke` initializes the actual input/renderer, draws the initial state,
 and exits via the SDK with **transport disabled**. This is a startup test, NOT live
@@ -151,8 +156,7 @@ SDK clients concurrently. Do not claim screen-off/reconnect behavior until measu
 On the next phone session: update-install the fresh isolated APKs, preserve the
 chosen route, grant the bridge existing OsmAnd connected-app access once, start
 native current-route simulation and start the bridge. Verify fix/progress ages,
-roundabout distance targets, strict expiry and route changes before enabling
-anticipation. An API null result is permission denial OR source error in the legacy
+roundabout distance targets, strict expiry and route changes. An API null result is permission denial OR source error in the legacy
 service; the bridge reports this ambiguity and does not weaken authorization.
 Then verify real SDK payload limits, reconnect and physical Garmin execution.
 
@@ -382,7 +386,8 @@ The full 32-path/512-point/four-anchor stress case with distinct full-budget UTF
 IDs/metadata encodes to 14577 bytes, below the SDK 2.4.0 send limit of 16384 bytes.
 The new layered 40-path/512-point/four-anchor stress case encodes to 15440 bytes;
 layered path IDs are capped at 24 characters to retain this bound. Ordinary mode
-keeps its 32-path limit and original drawing behavior. See [contract.md](contract.md).
+originally kept its 32-path limit. It now accepts up to 40 paths, subject to the
+same point and wire bounds; update both bridge and watch. See [contract.md](contract.md).
 This proves serialization/size compatibility, not actual wireless transmission.
 
 The normal bridge service can be prepared for a bounded tethered test through the
@@ -401,11 +406,14 @@ latency pass. Keep the SDK connection established before sending watch requests.
 
 ### Destination and automatic companion startup
 
-Navigation profile settings now contain **Start Garmin junction companion**, off
-by default. Opt in per profile. A false→true following transition launches the
-SEPARATE bridge only while the OsmAnd map Activity is resumed; unavailable/missing
-bridge or background UI falls back to a manual-start message without affecting
-navigation. No Garmin SDK is added to OsmAnd.
+When navigation starts in the isolated OsmAnd build and an accessible bridge is
+installed, OsmAnd asks whether to open Garmin Junction. The prompt can remember
+the choice per navigation profile using **Start Garmin junction companion** in
+navigation settings; turn that setting off to return to prompting. A false→true
+following transition launches the SEPARATE bridge only while the map Activity is
+resumed. With automatic startup enabled, unavailable/missing bridge or background
+UI falls back to a manual-start message without affecting navigation. No Garmin
+SDK is added to OsmAnd.
 
 The bridge accepts automatic mode only when Android's authenticated callingPackage
 is the isolated OsmAnd package. startActivityForResult is intentionally used to
@@ -432,3 +440,24 @@ the explicit verified Waydroid target's forward, start the visible bridge, start
 the native simulator ADB menu, verify CONNECTED, then deploy the live watch app.
 Keep the Android UI open when demonstrating both simulators. Never substitute old
 comparison replay for a requested live demo without saying so.
+
+### Separate bridge identity for a signing-key mismatch
+
+If an old development bridge is already installed with a different debug signing
+key, do not uninstall it or erase its data. A parallel manual-start test bridge can
+be built with `-PjunctionApplicationId=net.osmand.junction.bridge.physicaltest`
+and `-PjunctionAppLabel='Junction Bridge Test'`. The normal application ID and
+label remain the defaults. Android treats this as a distinct connected app, so
+OsmAnd access consent must be granted for it separately. In debug builds OsmAnd
+prefers this test identity when installed, otherwise it uses the normal bridge.
+Automatic startup with this identity still requires physical verification. The original signing key,
+when available, allows normal update installation instead. Retain the new local
+signing key for future updates; neither signing key belongs in Git.
+
+
+Upcoming-turn geometry now uses a bounded Android current/next cache, with the
+same native decision identities and compiler. OsmAnd alone promotes the next
+turn; recalculation and invalid lifecycle states clear preparation. No extra
+watch queue, routing engine or motion simulation is introduced. See
+[cache rules](contract.md) and [short tests](SIMULATOR_TESTS.md); capacity-limited
+scenes and physical watch-exit diagnosis remain separate open issues.

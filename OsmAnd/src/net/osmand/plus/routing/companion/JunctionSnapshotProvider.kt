@@ -13,6 +13,7 @@ import net.osmand.router.junction.JunctionCompiler
 import net.osmand.router.junction.JunctionFixClock
 import net.osmand.router.junction.JunctionGeometry
 import net.osmand.router.junction.JunctionRoadReader
+import net.osmand.router.junction.JunctionProgress
 import net.osmand.router.junction.JunctionSnapshotCache
 import net.osmand.router.junction.JunctionSnapshotCache.State
 import net.osmand.router.junction.JunctionWindow
@@ -34,9 +35,8 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
     private val worker = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "JunctionGeometry").apply { isDaemon = true }
     }
-    private var copiedRoute: RouteCalculationResult? = null
-    private var routeInput: JunctionGeometry.Route? = null
-    private var copiedJunction = -1
+    private var retryJunction = -1
+    private var retryRoute: RouteCalculationResult? = null
     private var retryAfter = 0L
     private val gson = Gson()
 
@@ -97,34 +97,39 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                 else -> State.ACTIVE
             }
             cache.observe(route, index, state)
-            if (state != State.ACTIVE) {
-                copiedRoute = null
-                routeInput = null
+            if (state != State.ACTIVE || retryRoute !== route) {
+                retryJunction = -1
+                retryAfter = 0L
+                retryRoute = null
             }
             val fix = helper.lastFixedLocation
             val fixAge = if (fix == null) 60_000 else fixClock.age(fix.time, System.currentTimeMillis(), now)
-            // This refers to the FIRST original scene anchor, including zero
-            // while OsmAnd still retains a decision whose entry was passed.
-            val distance = if (direction == null || route.currentRoute > direction.routePointOffset) 0
-                else route.getDistanceToPoint(helper.lastProjection, direction.routePointOffset).coerceAtLeast(0)
-            val ticket = if (now >= retryAfter) cache.requestBuild() else null
+            // Before entry, distance refers to the decision anchor. While inside
+            // a native roundabout, it refers to the exit that OsmAnd selected.
+            val target = direction?.let { JunctionProgress.targetIndex(route.currentRoute,
+                it.routePointOffset, it.routeEndPointOffset, it.turnType.isRoundAbout,
+                route.immutableAllLocations.size) } ?: -1
+            val distance = if (target < 0) 0 else
+                route.getDistanceToPoint(helper.lastProjection, target).coerceAtLeast(0)
+            // false/toSpeak uses consecutive native directions. Never advance
+            // from this queue; only the observation above chooses the current one.
+            fun request(target: Int) = if (target != retryJunction || now >= retryAfter)
+                cache.requestBuild(target) else null
+            val ticket = request(index) ?: if (index + 1 < route.immutableAllDirections.size)
+                request(index + 1) else null
             if (ticket != null) {
                 try {
-                    if (copiedRoute !== route || copiedJunction != index) {
-                        val points = route.immutableAllLocations
-                        val directions = route.immutableAllDirections
-                        routeInput = JunctionWindow.copy(points.size, directions.size, index,
-                            { position -> points[position].let {
-                                val road = route.immutableAllSegments.getOrNull(position)?.`object`
-                                JunctionGeometry.Geo(it.latitude, it.longitude, null,
-                                    JunctionLayers.level(road?.getValue("layer"), road?.getValue("bridge"), road?.getValue("tunnel")))
-                            } },
-                            { position -> directions[position].let { JunctionGeometry.Decision(it.routePointOffset,
-                                it.turnType.toXmlString(), it.streetName, it.turnType.exitOut) } })
-                        copiedRoute = route
-                        copiedJunction = index
-                    }
-                    val input = checkNotNull(routeInput)
+                    val points = route.immutableAllLocations
+                    val directions = route.immutableAllDirections
+                    val input = JunctionWindow.copy(points.size, directions.size, ticket.junction,
+                        { position -> points[position].let {
+                            val road = route.immutableAllSegments.getOrNull(position)?.`object`
+                            JunctionGeometry.Geo(it.latitude, it.longitude, null,
+                                JunctionLayers.level(road?.getValue("layer"), road?.getValue("bridge"), road?.getValue("tunnel")))
+                        } },
+                        { position -> directions[position].let { JunctionGeometry.Decision(it.routePointOffset,
+                            it.turnType.toXmlString(), it.streetName, it.turnType.exitOut,
+                            if (it.turnType.isRoundAbout) it.routeEndPointOffset else -1) } })
                     worker.execute {
                         var scene: JunctionGeometry.Scene? = null
                         try {
@@ -142,18 +147,26 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                                 cache.observe(null, -1, State.UNAVAILABLE)
                                 LOG.error("Junction completion observation failed", error)
                             }
-                            if (cache.complete(ticket, result) && result == null) retryAfter = SystemClock.elapsedRealtime() + 5000
+                            if (cache.complete(ticket, result) && result == null) {
+                                retryJunction = ticket.junction
+                                retryRoute = route
+                                retryAfter = SystemClock.elapsedRealtime() + 5000
+                            }
                         }
                     }
                 } catch (error: Exception) {
                     cache.complete(ticket, null)
+                    retryJunction = ticket.junction
+                    retryRoute = route
                     retryAfter = now + 5000
                     LOG.error("Junction route input unavailable", error)
                 }
             }
-            // Anticipation remains OFF in live export until actual fix/projection
-            // timestamps and update cadence are verified on the phone.
-            cache.snapshot(distance, fixAge, fixAge, 0)
+            // The watch applies at most one second of progress age, once. Never
+            // estimate from a speed that belongs to a different projection.
+            val speed = if (fix == null) 0 else JunctionFixClock.matchedSpeedDmps(
+                fix.time, helper.lastProjection?.time ?: 0L, fix.hasSpeed(), fix.speed)
+            cache.snapshot(distance, fixAge, fixAge, speed)
         }
         // Serialization is deliberately outside the routing lock.
         return Bundle().apply {

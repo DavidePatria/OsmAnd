@@ -6,8 +6,10 @@ class JunctionRenderer {
     function initialize() {}
     function draw(dc as Dc, state as NavigationState, now as Number, paused as Boolean) as Void {
         dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.clear();
-        dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
-        dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,REPLAY_MODE?(paused?"TEST REPLAY - PAUSED":"TEST REPLAY"):"JUNCTION",Graphics.TEXT_JUSTIFY_CENTER);
+        if (REPLAY_MODE) {
+            dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
+            dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,paused?"TEST REPLAY - PAUSED":"TEST REPLAY",Graphics.TEXT_JUSTIFY_CENTER);
+        }
         var status=state.status(now), scene=state.scene();
         if(status.equals("arrived")) {
             dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(3);
@@ -24,29 +26,29 @@ class JunctionRenderer {
             if (status.equals("recalculating")) { label="REROUTING"; }
             else if (status.equals("stale_transport")) { label="DATA EXPIRED"; }
             else if (status.equals("stale_source")) { label="POSITION OLD"; }
-            else if (status.equals("active")) { label="DETAIL LIMITED"; }
+            else if (status.equals("active")) {
+                label=scene!=null && scene["reason"].equals("geometry pending")?"LOADING JUNCTION":"DETAIL LIMITED";
+            }
             dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
             dc.drawText(dc.getWidth()/2,195,Graphics.FONT_MEDIUM,label,Graphics.TEXT_JUSTIFY_CENTER);
             dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
-            dc.drawText(dc.getWidth()/2,365,Graphics.FONT_XTINY,REPLAY_MODE?"Recorded test input":"Waiting for phone",Graphics.TEXT_JUSTIFY_CENTER);
+            var explanation=REPLAY_MODE?"Recorded test input":(label.equals("LOADING JUNCTION")?"Preparing road detail":"Waiting for phone");
+            dc.drawText(dc.getWidth()/2,365,Graphics.FONT_XTINY,explanation,Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
-        dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
-        dc.drawText(dc.getWidth()/2,53,Graphics.FONT_MEDIUM,state.displayDistance(now)+" m",Graphics.TEXT_JUSTIFY_CENTER);
-        var cx=dc.getWidth()/2, cy=dc.getHeight()*0.54, scale=dc.getWidth()*0.33/scene["radiusDm"];
+        var cx=dc.getWidth()/2, cy=dc.getHeight()/2, scale=dc.getWidth()*0.50/scene["radiusDm"];
         var paths=scene["paths"], selected=null;
-        dc.setClip(25,102,dc.getWidth()-50,270);
         if (scene["geometryMode"].equals("layer_context")) {
             layeredPaths(dc,paths,cx,cy,scale);
         } else {
-        dc.setColor(0x8193A6,Graphics.COLOR_BLACK);dc.setPenWidth(4);
+        dc.setColor(0x8193A6,Graphics.COLOR_BLACK);dc.setPenWidth(8);
         for (var i=0; i<paths.size(); i+=1) {
             if (paths[i]["role"].equals("selected")) { selected=paths[i]; }
             else { path(dc,paths[i]["points"],cx,cy,scale); }
         }
         if (selected!=null) {
-            dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(13);path(dc,selected["points"],cx,cy,scale);
-            dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(7);path(dc,selected["points"],cx,cy,scale);
+            dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(26);path(dc,selected["points"],cx,cy,scale);
+            dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(14);path(dc,selected["points"],cx,cy,scale);
         }
         }
         dc.setPenWidth(2);
@@ -62,14 +64,21 @@ class JunctionRenderer {
             var end=scene["destination"];
             flag(dc,cx+end[0]*scale,cy-end[1]*scale,5);
         }
-        dc.clearClip();dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
+        if (REPLAY_MODE) {
+            dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
+            dc.drawText(dc.getWidth()/2,22,Graphics.FONT_XTINY,paused?"TEST REPLAY - PAUSED":"TEST REPLAY",Graphics.TEXT_JUSTIFY_CENTER);
+        }
+        dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);
+        dc.drawText(dc.getWidth()/2,REPLAY_MODE?53:25,Graphics.FONT_MEDIUM,state.displayDistance(now)+" m",Graphics.TEXT_JUSTIFY_CENTER);
         var name=scene["roadName"];
         // Use the device font metrics, not a guessed character count, to fit a round display.
         while (name.length()>0 && dc.getTextWidthInPixels(name,Graphics.FONT_XTINY)>310) { name=name.substring(0,name.length()-1); }
         dc.drawText(dc.getWidth()/2,382,Graphics.FONT_XTINY,name,Graphics.TEXT_JUSTIFY_CENTER);
-        dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
-        var detail=(scene["geometryMode"].equals("map_context") || scene["geometryMode"].equals("layer_context"))?"MOTOR ROADS":(scene["geometryMode"].equals("route_only")?"ROUTE ONLY":"PARTIAL ROADS");
-        dc.drawText(dc.getWidth()/2,414,Graphics.FONT_XTINY,detail,Graphics.TEXT_JUSTIFY_CENTER);
+        if (!scene["geometryMode"].equals("map_context") && !scene["geometryMode"].equals("layer_context")) {
+            dc.setColor(0x8CA5BF,Graphics.COLOR_BLACK);
+            var detail=scene["geometryMode"].equals("route_only")?"ROUTE ONLY":"PARTIAL ROADS";
+            dc.drawText(dc.getWidth()/2,414,Graphics.FONT_XTINY,detail,Graphics.TEXT_JUSTIFY_CENTER);
+        }
     }
     //! Pole foot is the actual destination; checkerboard extends above/right.
     private function flag(dc as Dc,x as Numeric,y as Numeric,cell as Number) as Void {
@@ -100,14 +109,14 @@ class JunctionRenderer {
         }
         for (var level=low;level<=high;level+=1) {
             if (level>low) {
-                dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(10);
+                dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(20);
                 for (var i=0;i<paths.size();i+=1) { if (!paths[i]["role"].equals("selected") && paths[i]["layer"]==level) { path(dc,paths[i]["points"],cx,cy,scale); } }
             }
-            dc.setColor(0x8193A6,Graphics.COLOR_BLACK);dc.setPenWidth(4);
+            dc.setColor(0x8193A6,Graphics.COLOR_BLACK);dc.setPenWidth(8);
             for (var i=0;i<paths.size();i+=1) { if (!paths[i]["role"].equals("selected") && paths[i]["layer"]==level) { path(dc,paths[i]["points"],cx,cy,scale); } }
             if (selected!=null) {
-                dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(13);selectedLevel(dc,selected,level,cx,cy,scale);
-                dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(7);selectedLevel(dc,selected,level,cx,cy,scale);
+                dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.setPenWidth(26);selectedLevel(dc,selected,level,cx,cy,scale);
+                dc.setColor(0xFFD166,Graphics.COLOR_BLACK);dc.setPenWidth(14);selectedLevel(dc,selected,level,cx,cy,scale);
             }
         }
     }

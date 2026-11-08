@@ -29,7 +29,7 @@ public final class JunctionCaptureRunner {
         }
         for (JsonElement e:raw.getAsJsonArray("directions")) {
             JsonObject d=e.getAsJsonObject();JsonElement name=d.get("streetName");
-            decisions.add(new Decision(d.get("routePointOffset").getAsInt(),d.get("turn").getAsString(),name==null||name.isJsonNull()?"":name.getAsString(),d.get("roundaboutExit").getAsInt()));
+            decisions.add(new Decision(d.get("routePointOffset").getAsInt(),d.get("turn").getAsString(),name==null||name.isJsonNull()?"":name.getAsString(),d.get("roundaboutExit").getAsInt(),d.has("routeEndPointOffset")?d.get("routeEndPointOffset").getAsInt():-1));
         }
         Map<String,String> segmentRoadIds=new HashMap<>();
         for (JsonElement item:raw.getAsJsonArray("segments")) {

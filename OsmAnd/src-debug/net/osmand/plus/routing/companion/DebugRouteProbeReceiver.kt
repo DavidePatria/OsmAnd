@@ -170,6 +170,8 @@ class DebugRouteProbeReceiver : BroadcastReceiver() {
                 .put("routingProfile", mode?.routingProfile ?: JSONObject.NULL)
                 .put("derivedProfile", mode?.let { app.settings.DERIVED_PROFILE.getModeValue(it) } ?: JSONObject.NULL)
                 .put("routeService", route.routeService.toString()).put("distanceM", route.wholeDistance)
+                .put("remainingTimeSeconds", route.getLeftTime(null))
+                .put("routingMaps", JSONArray(app.resourceManager.routingMapFiles.map { it.file.absolutePath }.distinct()))
                 .put("locationsLatLon", points).put("locationSegmentIds", references)
                 .put("segments", segments).put("directions", directions)
                 .put("limitations", JSONArray().put("routing attachments may omit filtered or cleared roads")

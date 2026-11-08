@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
      <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+     <queries>
+          <package android:name="net.osmand.junction.bridge.physicaltest" />
+     </queries>
      <application>
           <provider android:name="androidx.core.content.FileProvider"
                     android:authorities="${applicationId}.fileprovider"

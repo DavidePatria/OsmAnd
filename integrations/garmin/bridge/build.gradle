@@ -8,7 +8,8 @@ android {
     namespace 'net.osmand.junction.bridge'
     compileSdk 36
     defaultConfig {
-        applicationId 'net.osmand.junction.bridge.debug'
+        applicationId (findProperty('junctionApplicationId') ?: 'net.osmand.junction.bridge.debug')
+        manifestPlaceholders = [junctionAppLabel: (findProperty('junctionAppLabel') ?: '@string/app_name')]
         minSdk 24
         targetSdk 36
         versionCode 2

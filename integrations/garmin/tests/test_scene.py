@@ -103,6 +103,13 @@ class SceneValidationTests(unittest.TestCase):
         value['paths'] += [{'id':str(i),'role':'branch','points':[[0,0],[10,i]],'anchorRefs':[['a',0]]} for i in range(8)]
         self.assertTrue(validate(value))
 
+    def test_ordinary_context_accepts_40_paths_but_rejects_41(self):
+        value=scene();value['geometryMode']='map_context'
+        value['paths'] += [{'id':str(i),'role':'context','points':[[0,0],[10,i]],'anchorRefs':[]} for i in range(39)]
+        self.assertEqual(validate(value),[])
+        value['paths'].append({'id':'overflow','role':'context','points':[[0,0],[10,10]],'anchorRefs':[]})
+        self.assertIn('paths',validate(value))
+
     def test_distinct_anchor_ids_are_not_merged_by_screen_position(self):
         value=scene();value['anchors'].append({'id':'b','point':[0,0],'routeIndex':2})
         value['paths'][0]['anchorRefs'].append(['b',1])

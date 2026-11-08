@@ -33,7 +33,7 @@ module SceneDecoder {
         if (!(mode.equals("routing_branches") || mode.equals("map_context") || mode.equals("layer_context") || mode.equals("route_only") || mode.equals("unavailable"))) { return null; }
         var layered=mode.equals("layer_context"),context=mode.equals("map_context") || layered;
         var anchors=value["anchors"], paths=value["paths"];
-        if (!(anchors instanceof Array) || anchors.size()>4 || !(paths instanceof Array) || paths.size()>(layered?40:(context?32:8))) { return null; }
+        if (!(anchors instanceof Array) || anchors.size()>4 || !(paths instanceof Array) || paths.size()>(context?40:8)) { return null; }
         var byId={}, normalizedAnchors=[];
         for (var i=0; i<anchors.size(); i+=1) {
             var a=anchors[i];

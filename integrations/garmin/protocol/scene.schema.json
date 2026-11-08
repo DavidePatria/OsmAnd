@@ -308,7 +308,7 @@
       "then": {
         "properties": {
           "paths": {
-            "maxItems": 32
+            "maxItems": 40
           }
         }
       }

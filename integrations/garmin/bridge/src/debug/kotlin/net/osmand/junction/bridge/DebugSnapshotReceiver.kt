@@ -4,6 +4,7 @@ import android.content.*
 import android.os.IBinder
 import android.os.SystemClock
 import android.os.Build
+import com.garmin.android.connectiq.ConnectIQ
 import net.osmand.aidlapi.IOsmAndAidlInterface
 import org.json.JSONObject
 import java.util.concurrent.CountDownLatch
@@ -31,6 +32,21 @@ class DebugSnapshotReceiver : BroadcastReceiver() {
                     "stop_tethered" -> {
                         context.getSharedPreferences(NavigationService.PREFS,Context.MODE_PRIVATE).edit().remove("deskTethered").apply()
                         context.stopService(Intent(context, NavigationService::class.java))
+                    }
+                    "sdk_state" -> {
+                        // Read the existing process singleton. Do not initialize,
+                        // change transport, open an app or restart a connection.
+                        val sdk = ConnectIQ.getInstance()
+                        val devices = sdk.knownDevices.orEmpty()
+                        val chosen = context.getSharedPreferences(NavigationService.PREFS, Context.MODE_PRIVATE)
+                            .getLong("deviceId", -1)
+                        val device = if (chosen >= 0) devices.singleOrNull { it.deviceIdentifier == chosen }
+                            else devices.singleOrNull()
+                        result.put("sdkStrategy", sdk.javaClass.simpleName)
+                            .put("deviceCount", devices.size)
+                            .put("deviceStatus", device?.let { sdk.getDeviceStatus(it).name } ?: "NO_DEVICE")
+                            .put("pid", android.os.Process.myPid())
+                            .put("elapsedMs", SystemClock.elapsedRealtime())
                     }
                     else -> error("unsupported fixed debug operation")
                 }

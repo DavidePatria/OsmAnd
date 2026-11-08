@@ -40,6 +40,38 @@ class DeskTargetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'unknown operation'):client.probe('erase')
             call.assert_not_called()
 
+    def test_invalid_simulation_configuration_rejected_before_broadcast(self):
+        client=object.__new__(desk.Desk)
+        for operation, bridge, config in [('state',False,{'mode':'constant','speedMps':20}),
+                ('start',True,{'mode':'constant','speedMps':20}),
+                ('start',False,{'mode':'unknown','speedMps':20}),
+                ('start',False,{'mode':'constant','speedMps':float('nan')}),
+                ('start',False,{'mode':'constant','speedMps':True}),
+                ('start',False,{'mode':'constant','speedMps':100})]:
+            with self.subTest(config=config), patch.object(client,'command') as call:
+                with self.assertRaises(ValueError):client.probe(operation,bridge,simulation=config)
+                call.assert_not_called()
+
+    def test_native_speed_and_mode_are_passed_only_to_explicit_source_start(self):
+        client=object.__new__(desk.Desk)
+        with patch.object(desk.uuid,'uuid4') as identity, patch.object(client,'command',side_effect=['broadcast',json.dumps({'request':'new','status':'ok'})]) as call:
+            identity.return_value.hex='new'
+            client.probe('start',simulation={'mode':'constant','speedMps':20})
+            self.assertIn('--es simulation_mode constant --ef speed_mps 20',call.call_args_list[0].args[1])
+
+    def test_native_realistic_mode_does_not_pass_a_constant_speed(self):
+        client=object.__new__(desk.Desk)
+        with patch.object(desk.uuid,'uuid4') as identity, patch.object(client,'command',side_effect=['broadcast',json.dumps({'request':'new','status':'ok'})]) as call:
+            identity.return_value.hex='new'
+            client.probe('start',simulation={'mode':'realistic'})
+            arguments=call.call_args_list[0].args[1]
+            self.assertIn('--es simulation_mode realistic',arguments)
+            self.assertNotIn('speed_mps',arguments)
+        with patch.object(client,'command') as call:
+            with self.assertRaisesRegex(ValueError,'owns its speed'):
+                client.probe('start',simulation={'mode':'realistic','speedMps':20})
+            call.assert_not_called()
+
     def test_old_evidence_is_not_accepted_for_a_new_request(self):
         client=object.__new__(desk.Desk)
         old=json.dumps({'request':'old','status':'decoded'})

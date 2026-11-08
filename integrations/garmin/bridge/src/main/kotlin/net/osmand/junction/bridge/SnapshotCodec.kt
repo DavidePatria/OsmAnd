@@ -65,7 +65,7 @@ object SnapshotCodec {
         val radius=raw["radiusDm"] as Int;val context=mode in listOf("map_context","layer_context")
         val anchors=raw["anchors"] as? List<*> ?: error("anchors")
         val paths=raw["paths"] as? List<*> ?: error("paths")
-        require(anchors.size<=4 && paths.size<=(if(mode=="layer_context")40 else if(context)32 else 8))
+        require(anchors.size<=4 && paths.size<=(if(context)40 else 8))
         val byId=mutableMapOf<String,List<*>>()
         anchors.forEach { a ->
             val item=a as? Map<*, *> ?: error("anchor")

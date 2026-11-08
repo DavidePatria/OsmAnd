@@ -9,6 +9,30 @@ function testScene() as Dictionary {
         "paths"=>[{"id"=>"route","role"=>"selected","points"=>[[0,-100],[0,0],[100,0]],"anchorRefs"=>[["a",1]]}]};
 }
 (:test)
+function junctionAlertFiresOncePerDisplayedNativeDecision(logger as Test.Logger) as Boolean {
+    var alert=new JunctionAlert(),scene=testScene();
+    if (!alert.shouldAlert(scene,"active") || alert.shouldAlert(scene,"active")) { return false; }
+    scene["seq"]=2;scene["generation"]=2;scene["distanceM"]=50;
+    if (alert.shouldAlert(scene,"active")) { return false; }
+    if (alert.shouldAlert(null,"unavailable") || alert.shouldAlert(scene,"stale_transport") || alert.shouldAlert(scene,"active")) { return false; }
+    scene["anchors"][0]["routeIndex"]=2;
+    if (!alert.shouldAlert(scene,"active") || alert.shouldAlert(scene,"active")) { return false; }
+    scene["maneuver"]="TL";
+    return alert.shouldAlert(scene,"active") && !alert.shouldAlert(scene,"active");
+}
+(:test)
+function junctionAlertWaitsForGeometryAndResetsAfterRoute(logger as Test.Logger) as Boolean {
+    var alert=new JunctionAlert(),scene=testScene();scene["geometryMode"]="unavailable";
+    if (alert.shouldAlert(scene,"active")) { return false; }
+    scene["geometryMode"]="routing_branches";
+    if (!alert.shouldAlert(scene,"active")) { return false; }
+    alert.shouldAlert(null,"arrived");
+    if (!alert.shouldAlert(scene,"active")) { return false; }
+    alert.shouldAlert(null,"idle");
+    if (!alert.shouldAlert(scene,"active")) { return false; }
+    scene["session"]="new-session";return alert.shouldAlert(scene,"active");
+}
+(:test)
 function decoderRejectsMalformedScene(logger as Test.Logger) as Boolean {
     var s=testScene();s["version"]=2;if (SceneDecoder.decode(s)!=null) { return false; }
     s=testScene();s["paths"][0]["anchorRefs"]=[["missing",1]];if (SceneDecoder.decode(s)!=null) { return false; }
@@ -78,6 +102,11 @@ function contextBudgetAndNoInventedConnectivity(logger as Test.Logger) as Boolea
     s["paths"][1]["anchorRefs"]=[["a",0]];
     if (SceneDecoder.decode(s)!=null) { return false; }
     s["paths"][1]["anchorRefs"]=[];s["geometryMode"]="routing_branches";
+    if (SceneDecoder.decode(s)!=null) { return false; }
+    s["geometryMode"]="map_context";
+    for (var i=28;i<39;i+=1) { s["paths"].add({"id"=>"c"+i,"role"=>"context","points"=>[[10,i],[100,i]],"anchorRefs"=>[]}); }
+    if (s["paths"].size()!=40 || SceneDecoder.decode(s)==null) { return false; }
+    s["paths"].add({"id"=>"overflow","role"=>"context","points"=>[[0,0],[10,10]],"anchorRefs"=>[]});
     return SceneDecoder.decode(s)==null;
 }
 

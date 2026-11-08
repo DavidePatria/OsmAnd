@@ -156,28 +156,92 @@ Decided by the agent, not requested explicitly: ...
 
 ## 12. Junction companion project instructions
 
-These instructions capture the user's current requirements for this local project.
+These are the user's current requirements for this local project. For current
+status, evidence, unfinished checks and next steps, read `tasks/START_HERE.md`,
+`tasks/todo.md` and `tasks/verification.md`. Keep observed results separate from
+assumptions and unexecuted checks; preserve the historical record in those files.
 
-- **Current priority:** verify actual junction layouts with the Garmin simulator in the loop, before further live transport work. Read `tasks/START_HERE.md`, `tasks/todo.md`, and `tasks/verification.md`; keep observed results separate from assumptions and unexecuted checks.
-- **Current continuation:** the user authorized completing useful work WITHOUT the phone attached. Use saved captures/maps, host tests, Android builds and the Garmin simulator. Do not access ADB, install on the phone or replace its route during this phase. Implement geometry/export/delivery pieces in dependency order, retaining explicit hardware-only verification gates. Commit `0c6b7f8` is the last user-authorized commit; later edits need a new commit request.
-- **Waydroid continuation (2026-11-06):** the user installed Waydroid and approved its one-time Android debugging trust dialog. Waydroid access, isolated test-app installs and desk testing are now authorized. Use an explicit verified Waydroid ADB target for EVERY command; never reuse the physical-phone target from the default private configuration or issue device-wide resets. Keep runtime addresses in ignored local configuration. Existing physical phone and personal app data remain untouched.
-- **Unattended validation:** the user authorized completing the Waydroid map/simulation/live-export work alone, leaving coordinate-linked watch previews for later judgment, and minimizing work deferred to physical testing. Reuse the saved meaningful route for reviews; label extra public scenarios separately. Automate software lifecycle/failure checks and measure real timings. Do not infer physical Bluetooth/GPS, API 34+ foreground policy, OEM sleep/battery or riding readability from Waydroid API 33 or recorded simulator replay. Ordinary test-app runtime permissions may be configured; no Waydroid root/system permission changes are needed.
-- **Target:** Android phone navigation, motorcycle routes calculated by OsmAnd, standalone Garmin Forerunner 970 app. Wrist and mounted layouts share the same data. Preserve junction shape, selected branches and nearby decision points; never present synthetic branches as extracted road data.
-- **Display:** show a stable diagram of the next junction with ALL available mapped road arms, selected route yellow, plus distance updated once per second. Do not build a moving map or moving rider marker. OsmAnd owns junction advancement. Optional anticipation compensates only known delay of route-matched progress, capped at one second; never extrapolate indefinitely or compensate twice.
-- **Road relevance:** the user explicitly permits omitting footpaths/cycleways and other non-motor roads that otherwise appear misleadingly as solid roads. Filter by road type and access hierarchy, not dashed map styling; preserve motor-access overrides, ordinary tracks/service roads and the calculated yellow route. This is a display filter, not a new routing/legal-access engine. Traffic-light landmarks may be useful; stop signs require approach-specific care. The user explicitly deferred both symbols: do not implement them yet.
-- **Accepted visual style (2026-11-06):** the user approved review examples 1–5 and rejected the yellow-only limited views in 6–9. Preserve all surrounding motor roads in gray and the selected route in yellow. Bridge/tunnel handling must retain alternatives and distinguish drawing levels; do not solve grade separation by dropping roads. Preserve example numbering and approved geometry while iterating.
-- **Next user demonstration:** the user wants a full desk demonstration with OsmAnd in Waydroid and the actual Garmin simulator producing the diagrams. They will supply both a more challenging start and destination; keep the existing route as comparison evidence. Label actual live SDK delivery separately from recorded-packet replay; do not present synchronized replay or browser previews as live transport.
-- **Live demo correction:** the user supplied a new Rome start/destination and explicitly prefers a WORKING connection between both simulators. Use those coordinates from ignored local captures; do not put them in tracked documentation. Explain when the watch is displaying old comparison data or running tests. Establish the SDK connection before launching a sending watch app. Do not relax freshness limits or suppress relevant road arms merely to make a demo appear successful.
-- **Workaround accountability:** the user requires shortcuts/workarounds to be documented so a later agent can reconsider them. Record the observed cause, evidence, implementation choice, constraints, alternatives and remaining verification. SDK 2.4.0 tethered throttling and compact wire encoding belong in the contract/verification notes; do not present simulator timing as measured physical BLE throughput.
-- **Meaningful routes:** the user may choose endpoints/profile on the phone. Default capture is read-only. Never replace that route with the public baseline, reinstall/reset the app, or change endpoints without a task reason and authorization. Personal captures, coordinates and generated review images stay out of Git.
-- **Geometry review:** provide watch-layout previews with coordinate links to OpenStreetMap for the user's own comparison; map screenshots are unnecessary. Distinguish previews (approximate fonts), real simulator drawing callbacks and actual simulator screenshots. Filtered routing alternatives do not prove complete road coverage. A bounded read-only query of the existing OBF with OsmAnd's reader is in scope; no second map database or native routing changes.
-- **Scope:** contained read-only integration, independent companion project, no changes to native routing decisions or a second map database. Keep diagnostics in explicitly debug-only sources and protect exported test controls. Preserve the user's F-Droid app and data; install only the separate development identities.
-- **Desk iteration:** automate incremental builds, update installation, launch, scenario setup and evidence collection. Connected devices and human supervision are available. Avoid repeated manual installation/menu/route setup; report measured unavoidable actions honestly. Simulator success does not establish physical Garmin/Bluetooth behavior.
-- **Communication:** keep the user informed during work, normally within 60 seconds. Include concrete commands, observed states, failure boundaries and the next discriminating check so the user can spot low-level mistakes and help. Report failures promptly; do not quietly repeat attempts or turn uncertain results into passes.
-- **Visual review:** the user supplies screenshots when useful. Do not repeatedly request them. A drawing callback proves code execution, not pixel correctness. Respect the available UI tooling and approval restrictions.
-- **Handoff readiness:** after each important checkpoint, update concise status/evidence/next-step documentation. Reference existing plans instead of duplicating them. Development remains the priority. Keep an optional temporary handoff free of private device identifiers, credentials and signing material.
-- **Portable repository:** this Git repository contains the Android customization, `integrations/garmin/` companion/tooling and `tasks/` documentation. Recreate required sibling build inputs using `integrations/garmin/workspace.lock.json` and `bootstrap.py`; never overwrite/reset an existing checkout automatically. Private local configuration and keys stay outside Git. See `JUNCTION.md` for a fresh-machine workflow.
-- **Git:** the user has explicitly requested focused local commits for the current checkpoint and a clean index. Commit cohesive validated changes with accurate documentation; do not include SDKs, binaries, caches, raw device logs or private configuration. Future commits require user authorization. GitHub account/repository creation, remote changes and pushing remain manual unless explicitly requested. Do not install GitHub CLI/connectors for this workflow.
-
-- **Destination/startup continuation (2026-11-06):** the user requested a checkered routed-destination marker, a distinct native-arrival watch screen, and opt-in automatic bridge startup. They chose KEEPING THE BRIDGE SEPARATE. Use the existing native finished-route flag, never cancellation/zero junction distance. Keep automatic startup authenticated and foreground-safe; request watch opening once after SDK/device readiness, with no reconnect prompt loops. Document physical prompt/first-permission/background-start limits separately.
-- **Desktop restart / Android visibility:** the user restarted after a desktop crash and explicitly wants to SEE the Android UI alongside Garmin. Restore Waydroid with show-full-ui before relying on ADB: the observed no-window container was FROZEN until that command resumed it. Recreate only the exact task-owned forward and verify CONNECTED before starting watch sends. Reuse saved routes/apps/maps; no reinstall/reset is needed just for a reboot. Code/build/test evidence survived the observed restart.
+- **Product:** OsmAnd on Android calculates motorcycle routes; a separate Android
+  bridge delivers them to a standalone Garmin Forerunner 970 app. Wrist and mounted
+  views share data. Keep the bridge separate. Avoid a second map database, changes
+  to native routing decisions or a second navigation state machine.
+- **Watch display:** Show a stable diagram, not a moving map or rider marker. Use
+  the full round screen, prominent roads, all available relevant motor-road arms
+  in gray and the selected route in yellow. Preserve junction shape, nearby
+  decisions and bridge/tunnel drawing levels. Do not silently omit alternatives,
+  invent branches or treat a yellow-only fallback as a full-context success.
+- **Road relevance:** Footways, cycleways and other non-motor roads may be omitted
+  using road type and access hierarchy, not dashed styling. Retain motor-access
+  overrides, ordinary tracks/service roads and the calculated route. This is a
+  display filter, not a legal-access engine. Traffic-light/stop-sign symbols were
+  explicitly deferred; do not implement them without a new request.
+- **Progress and cache:** OsmAnd alone chooses when a junction advances. Update
+  distance about once per second. Compensate only known route-matched progress age,
+  capped at one second; never extrapolate indefinitely or compensate twice. The
+  Android cache holds current and next geometry, invalidates on route/lifecycle
+  changes and never advances independently. Keep freshness checks strict.
+- **Roundabouts:** The user observed the watch stuck at zero inside Piazza dei Re
+  di Roma and unable to see the exit. Preserve the actual native entry/end offsets,
+  selected exit and mapped road context. The user prefers one full roundabout
+  diagram and distance to the exit while inside. Use native end offsets, keep
+  ordinary junction scale, and retain the saved real route for regression. Do not
+  present simulator callbacks as visual or physical-device proof; see task docs.
+- **Haptics:** A short pulse is requested when a new junction is displayed, not for
+  each distance update, loading frame or reconnection to the same junction. The
+  actual vibration strength and feel require a physical Forerunner check.
+- **Arrival and startup:** Use native finished-route state for the distinct arrival
+  screen and actual routed destination for its checkered marker; cancellation and
+  zero distance are not arrival. Automatic bridge startup is opt-in and must be
+  authenticated/foreground-safe. Request watch opening only after SDK/device
+  readiness without reconnect prompt loops; document first-permission limitations.
+- **Testing:** Prefer short, fixed, meaningful scenarios using native OsmAnd
+  motorcycle route calculation and REALISTIC simulation in Waydroid plus the live
+  Garmin simulator/SDK. Do not replace this with a custom motion engine, synthetic
+  roads or scripted fixture injection without authorization. The five short dense
+  routes run once by default; a focused smoke takes a few minutes and endurance is
+  explicit. The user deferred precisely scripted stops/speed spikes; native random
+  stops/noise are opportunistic, not deterministic edge-case coverage.
+- **Investigations:** The physical watch returning to its watch face remains
+  unexplained unless new evidence establishes a cause. The former 32-path
+  yellow-only limit affected two saved cases and the Piazza; a 40-path budget
+  covers those tested cases, but more complex scenes can still fall back. Preserve
+  the Piazza roundabout reproduction and original route inputs. Simulated stability is not
+  evidence of physical Bluetooth/GPS, watch firmware, API 34+ foreground policy,
+  OEM battery behavior or riding readability.
+- **Waydroid and devices:** The user authorized isolated Waydroid development-app
+  installs and testing without the phone. Every ADB command must use an explicit,
+  verified Waydroid target; never reuse the physical-phone target from private
+  configuration or perform device-wide resets. Preserve the personal F-Droid app,
+  phone data and route. Physical watch/phone testing or transfer requires the
+  corresponding device and user coordination; do not assume it occurred.
+- **Visible desk demo:** Show Waydroid full UI and the actual Garmin simulator;
+  distinguish live SDK delivery, recorded replay, approximate previews, drawing
+  callbacks and actual visual review. Restore Waydroid with `show-full-ui` before
+  ADB after a desktop restart, verify the exact task-owned forward and live SDK
+  CONNECTED state before sending. The SDK may require one manual Connection → Start;
+  ask only if it is disconnected. Preserve simulator failures and do not silently
+  relaunch in a loop or call an incomplete/interrupted run a pass.
+- **Privacy and scope:** Personal coordinates, captures, device IDs, logs, keys,
+  SDKs, generated images, binary artifacts and local runtime configuration stay
+  outside Git (normally under ignored `build/garmin-review/`). Default route capture
+  is read-only; replace a route or update-install only for an authorized task and
+  only in the separate development identity. Debug controls must remain debug-only
+  and protected. Bounded read-only queries of the existing OBF are in scope.
+- **Evidence and review:** Record actual route, app/map hashes, timing, failure
+  boundaries, tests and open hardware gates in the task docs. Provide coordinate-
+  linked previews when useful; a drawing callback alone does not prove pixel
+  correctness. Preserve the user's accepted gray/yellow style and existing review
+  numbering. Do not ask repeatedly for screenshots.
+- **Workarounds:** Document observed cause, evidence, implementation, constraints,
+  alternatives and remaining verification. Explain simulated SDK throttling and
+  compact wire encoding honestly; never present simulator timing as physical BLE
+  throughput. Preserve `JUNCTION.md` and `workspace.lock.json` portable setup; never
+  automatically overwrite or reset sibling checkouts.
+- **Communication:** Give concise progress updates normally within 60 seconds;
+  identify failures promptly and describe the next useful check. Minimize manual
+  steps and retain evidence. Keep docs current after important checkpoints.
+- **Git and versions:** The user authorized cohesive validated local commits and
+  version tags as work progresses. Start pre-release versioning in the `v0.x.y`
+  range; 1.0.0 is not reached. Keep private/generated artifacts out of Git, do
+  not alter `.gitignore`, and do not push, modify remotes or create public repos
+  without explicit authorization. Scope commits carefully and retain other work.

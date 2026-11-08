@@ -33,11 +33,16 @@ public final class JunctionGeometry {
     }
 
     public static final class Decision {
-        public final int routeIndex, roundaboutExit;
+        public final int routeIndex, roundaboutExit, roundaboutEndIndex;
         public final String turn, roadName;
         public Decision(int routeIndex, String turn, String roadName, int roundaboutExit) {
+            this(routeIndex,turn,roadName,roundaboutExit,-1);
+        }
+        public Decision(int routeIndex, String turn, String roadName, int roundaboutExit, int roundaboutEndIndex) {
             this.routeIndex=routeIndex;this.turn=shortText(turn);this.roadName=shortText(roadName);
             this.roundaboutExit=Math.max(0,roundaboutExit);
+            boolean roundabout=this.turn.startsWith("RNDB") || this.turn.startsWith("RNLB");
+            this.roundaboutEndIndex=roundabout && roundaboutEndIndex>routeIndex?roundaboutEndIndex:-1;
         }
     }
 

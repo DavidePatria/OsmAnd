@@ -14,7 +14,7 @@ import java.util.Set;
 
 /** Bounded, Android-independent implementation of the approved fixed diagram. */
 public final class JunctionCompiler {
-    public static final int MAX_PATHS=32,MAX_LAYER_PATHS=40,MAX_PATH_POINTS=48,MAX_POINTS=512;
+    public static final int MAX_PATHS=40,MAX_LAYER_PATHS=40,MAX_PATH_POINTS=48,MAX_POINTS=512;
     private static final double EARTH=6371000,RADIUS=75;
     private static final Set<String> NON_MOTOR=new HashSet<>(Arrays.asList("footway","cycleway","path","pedestrian","steps","bridleway","corridor","platform"));
     private static final Set<String> MOTOR_ACCESS=new HashSet<>(Arrays.asList("yes","permissive","designated","destination","delivery","customers","private","permit","agricultural","forestry","discouraged"));
@@ -52,9 +52,12 @@ public final class JunctionCompiler {
     public Scene compile(Route route,int maneuver,Context context) {
         Scene scene=compileGeometry(route,maneuver,context);
         if (!scene.paths.isEmpty() && route.destinationIndex==route.indexBase+route.points.size()-1) {
-            int anchor=route.decisions.get(maneuver).routeIndex-route.indexBase;double remaining=0;
+            Decision decision=route.decisions.get(maneuver);
+            int anchor=decision.routeIndex-route.indexBase;double remaining=0,exitDistance=0;
             for(int i=anchor+1;i<route.points.size();i++) remaining+=distance(route.points.get(i-1),route.points.get(i));
-            if (remaining<=RADIUS) {
+            int exit=decision.roundaboutEndIndex-route.indexBase;
+            if (exit>anchor && exit<route.points.size()) for(int i=anchor+1;i<=exit;i++) exitDistance+=distance(route.points.get(i-1),route.points.get(i));
+            if (remaining<=Math.max(RADIUS,exitDistance>0?exitDistance+20:RADIUS)) {
                 Path selected=scene.paths.get(0);
                 return scene.withDestination(selected.points.get(selected.points.size()-1));
             }
@@ -70,6 +73,9 @@ public final class JunctionCompiler {
         // same frame/interpolation as the full route, without prefix rounding.
         for (int i=offset+1;i<cumulative.length;i++) cumulative[i]=cumulative[i-1]+distance(route.points.get(i-1),route.points.get(i));
         for (int i=offset-1;i>=0;i--) cumulative[i]=cumulative[i+1]-distance(route.points.get(i),route.points.get(i+1));
+        int exit=d.roundaboutEndIndex-route.indexBase;
+        if (d.roundaboutEndIndex>=0 && (exit<=offset || exit>=route.points.size())) return unavailable(d,"roundabout exit outside route window");
+        double departure=exit>offset?Math.max(RADIUS,cumulative[exit]-cumulative[offset]+20):RADIUS;
         int approach=offset>0?offset-1:0;
         while (approach>0 && cumulative[offset]-cumulative[approach]<30) approach--;
         if (cumulative[offset]-cumulative[approach]<.1) return unavailable(d,"approach tangent unavailable");
@@ -77,7 +83,7 @@ public final class JunctionCompiler {
         List<Integer> indexes=new ArrayList<>();indexes.add(offset);
         for (int i=maneuver+1;i<route.decisions.size();i++) {
             int next=route.decisions.get(i).routeIndex-route.indexBase;
-            if (cumulative[next]-cumulative[offset]>RADIUS) break;
+            if (cumulative[next]-cumulative[offset]>departure) break;
             if (next>indexes.get(indexes.size()-1)) {
                 if (indexes.size()==4) return unavailable(d,"decision anchor capacity exceeded");
                 indexes.add(next);
@@ -85,7 +91,7 @@ public final class JunctionCompiler {
         }
         int first=offset,last=offset;
         while (first>0 && cumulative[offset]-cumulative[first-1]<=RADIUS) first--;
-        while (last+1<cumulative.length && cumulative[last+1]-cumulative[offset]<=RADIUS) last++;
+        while (last+1<cumulative.length && cumulative[last+1]-cumulative[offset]<=departure) last++;
         List<XY> selected=new ArrayList<>();int prefix=0;
         if (first>0) {
             double t=(cumulative[offset]-RADIUS-cumulative[first-1])/(cumulative[first]-cumulative[first-1]);
@@ -93,10 +99,18 @@ public final class JunctionCompiler {
         }
         for (int i=first;i<=last;i++) selected.add(frame.project(route.points.get(i)));
         if (last+1<cumulative.length) {
-            double t=(cumulative[offset]+RADIUS-cumulative[last])/(cumulative[last+1]-cumulative[last]);
+            double t=(cumulative[offset]+departure-cumulative[last])/(cumulative[last+1]-cumulative[last]);
             selected.add(frame.project(route.points.get(last)).between(frame.project(route.points.get(last+1)),t));
         }
+        // Scale only when the actual roundabout needs it; preserve the existing
+        // appearance for ordinary junctions. The five-metre margin also keeps
+        // rounded wire coordinates within the declared circular bound.
+        double contextRadius=RADIUS;
+        if (exit>offset) for (XY point:selected) contextRadius=Math.max(contextRadius,point.norm());
+        if (contextRadius>195) return unavailable(d,"roundabout exceeds display radius");
+        int radiusDm=(int)Math.ceil((contextRadius+5)*10);
         BitSet fixed=new BitSet();
+        if (exit>offset) fixed.set(exit-first+prefix);
         List<Integer> selectedLevels=new ArrayList<>();
         if (prefix==1) selectedLevels.add(route.points.get(first-1).layer);
         for (int i=first;i<last;i++) selectedLevels.add(route.points.get(i).layer);
@@ -106,15 +120,15 @@ public final class JunctionCompiler {
         }
         List<Anchor> anchors=new ArrayList<>();
         for (int i=0;i<indexes.size();i++) {
-            int k=indexes.get(i);fixed.set(k-first+prefix);anchors.add(new Anchor("j"+i,k+route.indexBase,quantize(frame.project(route.points.get(k)))));
+            int k=indexes.get(i);fixed.set(k-first+prefix);anchors.add(new Anchor("j"+i,k+route.indexBase,quantize(frame.project(route.points.get(k)),radiusDm)));
         }
         BitSet kept=simplify(selected,fixed);List<Integer> links=new ArrayList<>();
         for (int k:indexes) links.add(kept.get(0,k-first+prefix).cardinality());
         List<Integer> simplifiedLevels=new ArrayList<>();
         for (int i=kept.nextSetBit(0),j=kept.nextSetBit(i+1);j>=0;i=j,j=kept.nextSetBit(j+1)) simplifiedLevels.add(selectedLevels.get(i));
-        Path chosen=new Path("selected","selected",points(selected,kept),links,simplifiedLevels.get(0),simplifiedLevels);
+        Path chosen=new Path("selected","selected",points(selected,kept,radiusDm),links,simplifiedLevels.get(0),simplifiedLevels);
         if (chosen.points.size()<2 || chosen.points.size()>MAX_PATH_POINTS) return unavailable(d,"selected-route capacity exceeded");
-        if (!context.available || context.truncated) return limited(d,anchors,chosen,context.truncated?"road context truncated":"road context unavailable");
+        if (!context.available || context.truncated) return limited(d,anchors,chosen,radiusDm,context.truncated?"road context truncated":"road context unavailable");
         Map<String,Integer> shared=new HashMap<>();
         for (Road r:context.roads) for (Geo p:r.points) if (p.node!=null) shared.put(p.node,shared.getOrDefault(p.node,0)+1);
         List<Path> paths=new ArrayList<>();paths.add(chosen);int total=chosen.points.size();
@@ -125,29 +139,29 @@ public final class JunctionCompiler {
             for (Geo p:road.points) {
                 XY xy=frame.project(p);raw.add(xy);if (p.node!=null && shared.get(p.node)>1) critical.add(xy);
             }
-            List<List<XY>> pieces=clip(raw,RADIUS);
+            List<List<XY>> pieces=clip(raw,contextRadius);
             if (pieces.isEmpty()) continue;
             int layer;
             try { layer=JunctionLayers.level(road.tags.get("layer"),road.tags.get("bridge"),road.tags.get("tunnel")); }
-            catch (IllegalArgumentException error) { return limited(d,anchors,chosen,"unsupported road layer metadata"); }
+            catch (IllegalArgumentException error) { return limited(d,anchors,chosen,radiusDm,"unsupported road layer metadata"); }
             for (List<XY> piece:pieces) {
                 BitSet preserve=new BitSet();for (int i=0;i<piece.size();i++) if (critical.contains(piece.get(i))) preserve.set(i);
-                List<Point> ps=points(piece,simplify(piece,preserve));
+                List<Point> ps=points(piece,simplify(piece,preserve),radiusDm);
                 boolean distinct=false;
                 for (Point p:ps) if (p.x!=ps.get(0).x || p.y!=ps.get(0).y) distinct=true;
                 if (!distinct) continue;
                 total+=ps.size();
-                if (ps.size()>MAX_PATH_POINTS) return limited(d,anchors,chosen,"road vertex capacity exceeded: "+ps.size());
-                if (paths.size()>=128 || total>MAX_POINTS) return limited(d,anchors,chosen,"context capacity exceeded: "+paths.size()+" paths / "+total+" points");
+                if (ps.size()>MAX_PATH_POINTS) return limited(d,anchors,chosen,radiusDm,"road vertex capacity exceeded: "+ps.size());
+                if (paths.size()>=128 || total>MAX_POINTS) return limited(d,anchors,chosen,radiusDm,"context capacity exceeded: "+paths.size()+" paths / "+total+" points");
                 paths.add(new Path("c"+paths.size(),"context",ps,Collections.emptyList(),layer,Collections.emptyList()));
                 if (layer!=0) layered=true;
             }
         }
         int pathLimit=layered?MAX_LAYER_PATHS:MAX_PATHS;
         if (paths.size()>pathLimit) compactContext(paths,pathLimit);
-        if (paths.size()>pathLimit) return limited(d,anchors,chosen,"map context path capacity exceeded: "+paths.size());
-        return paths.size()==1?limited(d,anchors,chosen,"no local motor roads available"):
-                new Scene(layered?"layer_context":"map_context",layered?"motorcycle road context with level ordering":"motorcycle road context; intersections do not imply connectivity",d,800,anchors,paths);
+        if (paths.size()>pathLimit) return limited(d,anchors,chosen,radiusDm,"map context path capacity exceeded: "+paths.size());
+        return paths.size()==1?limited(d,anchors,chosen,radiusDm,"no local motor roads available"):
+                new Scene(layered?"layer_context":"map_context",layered?"motorcycle road context with level ordering":"motorcycle road context; intersections do not imply connectivity",d,radiusDm,anchors,paths);
     }
 
     /** Join only degree-two, same-level CONTEXT endpoints. Every visible segment
@@ -180,18 +194,18 @@ public final class JunctionCompiler {
         }
     }
 
-    private Scene limited(Decision d,List<Anchor> anchors,Path selected,String reason) {
+    private Scene limited(Decision d,List<Anchor> anchors,Path selected,int radiusDm,String reason) {
         if (selected.points.size()>24) return unavailable(d,reason+"; selected-route limit");
-        return new Scene("route_only",reason,d,800,anchors,Collections.singletonList(selected));
+        return new Scene("route_only",reason,d,radiusDm,anchors,Collections.singletonList(selected));
     }
     private Scene unavailable(Decision d,String reason) { return new Scene("unavailable",reason,d,800,Collections.emptyList(),Collections.emptyList()); }
-    private static Point quantize(XY p) {
+    private static Point quantize(XY p,int radiusDm) {
         int x=(int)Math.rint(p.x*10),y=(int)Math.rint(p.y*10);
-        if ((long)x*x+(long)y*y>800L*800) throw new IllegalArgumentException("Projected geometry outside bounds");
+        if ((long)x*x+(long)y*y>(long)radiusDm*radiusDm) throw new IllegalArgumentException("Projected geometry outside bounds");
         return new Point(x,y);
     }
-    private static List<Point> points(List<XY> input,BitSet kept) {
-        List<Point> result=new ArrayList<>();for (int i=kept.nextSetBit(0);i>=0;i=kept.nextSetBit(i+1)) result.add(quantize(input.get(i)));return result;
+    private static List<Point> points(List<XY> input,BitSet kept,int radiusDm) {
+        List<Point> result=new ArrayList<>();for (int i=kept.nextSetBit(0);i>=0;i=kept.nextSetBit(i+1)) result.add(quantize(input.get(i),radiusDm));return result;
     }
     private static BitSet simplify(List<XY> p,BitSet fixed) {
         BitSet keep=(BitSet)fixed.clone();keep.set(0);keep.set(p.size()-1);

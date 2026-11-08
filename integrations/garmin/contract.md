@@ -18,7 +18,7 @@ payload limits remain device gates.
 | `state` | `active`, `idle`, `recalculating`, `unavailable` |
 | `geometryMode` | `routing_branches` (filtered), `map_context` (local OBF motor-road context), `layer_context` (same context with drawing levels), `route_only` (partial), `unavailable` |
 | `reason`, `roadName`, `maneuver` | Strings ≤80 |
-| `distanceM` | Integer 0…1,000,000; along-route distance to FIRST decision anchor |
+| `distanceM` | Integer 0…1,000,000; along-route distance to the FIRST decision anchor before entry; while inside a native roundabout, distance to its selected exit |
 | `sourceAgeMs`, `fixAgeMs` | Integers 0…60,000 |
 | `progressAgeMs`, `speedDmps` | Optional PAIR: route-matched progress age 0…60,000 ms; forward speed 0…700 decimeters/second. Both absent disables anticipation. |
 | `radiusDm` | Integer 1…2,000 |
@@ -38,8 +38,8 @@ change OsmAnd's route. Lower roads draw first; black casing separates upper road
 from lower roads. All retained motor alternatives stay gray, selected route yellow.
 
 Legacy bounds: 8 paths / 24 points per path / 96 total. Ordinary map context:
-32 / 48 / 512; layered context: 40 / 48 / 512. The latter accommodates the observed
-35-path bridge scene. Exact degree-two same-level context endpoints may be joined
+40 / 48 / 512; layered context: 40 / 48 / 512. This accommodates the observed
+33–40-path scenes without omitting roads. Exact degree-two same-level context endpoints may be joined
 on overflow, preserving every segment; selected paths are never compacted this way.
 The pinned SDK serializes the maximum layered UTF-8 stress envelope to 15440 bytes,
 below its 16384-byte limit. A normal fr970 simulator application decodes/renders
@@ -57,23 +57,63 @@ fall back explicitly rather than silently flattening a crossing. See OSM's
 `layer_context` is a new mode within scene version 1: older strict decoders reject
 it safely instead of drawing its roads without their required level metadata.
 
+The live watch requests one 300 ms vibration pulse when a fresh, drawable native
+junction appears. Its identity uses the session, first anchor route index and
+maneuver; distance/sequence changes and temporary transport loss do not repeat it.
+Idle or native arrival clears the identity. On the Forerunner the SDK controls
+motor strength; physical feel and device settings are unverified. A reroute to a
+different junction with the same session/index/maneuver could share this identity;
+no additional route identity is currently carried by the wire protocol.
+
+For native roundabouts, the geometry window extends through the native end offset
+and a short segment after the selected exit. It expands the displayed radius only
+when needed, within the existing 200 m wire limit; scenes too large for that limit
+remain explicitly unavailable. Other junctions keep their previous scale. Before
+entry, distance refers to the entry anchor; after OsmAnd passes entry and while it
+retains the roundabout, distance refers to the native end/exit. The distance can
+therefore change target at entry. No local timer selects or advances a direction.
+
+Ordinary `map_context` now permits up to 40 paths (the existing layered limit),
+still with at most 48 points per path and 512 total. Watch and bridge must both
+be updated: older strict decoders safely reject ordinary scenes above 32 paths.
+The compact transport's 8192-byte payload bound and SDK limits remain unchanged.
+
 No moving rider marker or map scrolling. Production scene identity should be
 session + navigation generation + original next-junction index; freeze geometry
 until OsmAnd changes that junction/route. `JunctionSnapshotCache` and the Kotlin
-provider implement this, with one pending worker and obsolete-result rejection.
-The Android observation/lifecycle path is compiled but not phone-verified.
+provider implement this with one worker and at most two Android scenes: current
+and the immediately following native direction. Current geometry is built first;
+only then may the same window/OBF reader/compiler prepare the next one. A forward
+native observation can promote that scene without a new geometry build. Preparation
+never changes generation, distance or turn selection by itself. Heartbeats still
+use freshly observed distance, fix/progress ages and matched speed; preparing a
+scene early does not make a stale fix fresh. The watch receives only the current
+scene through the existing protocol and retains no upcoming-turn queue.
+
+Route identity replacement, recalculation, pause, deviation, unavailable state,
+arrival/cancel and backward turn movement discard prepared scenes. One in-flight
+worker retains its slot until completion; obsolete results cannot restore guidance.
+Forward skips evict out-of-window scenes. First scene, cache misses or an unfinished
+next build may still show loading. This does not fix context-capacity fallbacks,
+change native crossing/advancement decisions or establish physical-watch stability.
+The Android observation/lifecycle path still requires physical verification.
 
 `distanceM` MUST refer to an UNEXTRAPOLATED route-matched sample. Anticipation
 subtracts speed × min(progress sample age + local elapsed, 1 second), clamped at
 zero. Never compensate an already estimated position twice. Zero speed and missing
 progress fields disable anticipation. No watch timer advances the junction.
 Pause freezes the replay clock. Live pause/off-route/recalculation clear geometry;
-disconnect clears the watch state. The live exporter currently sends speed zero,
-keeping anticipation OFF until real timestamp/projection behavior is measured.
+disconnect clears the watch state. The live exporter sends speed only when the fix
+and progress projection have the same positive timestamp and the fix has a finite,
+nonnegative speed at most 70 m/s; otherwise it sends zero. The phone's simulated
+route produced 35/35 matching fix/projection timestamps. Physical GPS timestamp
+and speed behavior still requires testing; the one-second cap is unchanged.
 
 Normal replay updates at 1 Hz; selectable speed scales its clock. Waydroid native
 simulation fixes were measured around 1500 ms, with actual API sampling at 1 Hz;
-physical fix cadence and live Garmin transport latency remain unverified. The live target is
+physical GPS fix cadence remains unverified. Physical Garmin transport has delivered
+and acknowledged active scenes during indoor simulation; recent sends took about
+one second each, not a comprehensive throughput measurement. The live target is
 1 Hz with fresh progress correcting estimates. Age >5 s (source/fix/progress) or
 accepted-message silence >3 s expires active guidance. Clock rollback/wrap expires
 it too. Invalid/older packets do not refresh freshness. `NavigationRequestGate`

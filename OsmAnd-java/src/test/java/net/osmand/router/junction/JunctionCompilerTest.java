@@ -53,7 +53,7 @@ public class JunctionCompilerTest {
         assertEquals(2,scene.paths.size());assertEquals("selected",scene.paths.get(0).role);
     }
     @Test public void overflowIsExplicitAndBridgesRetainRoadContext() {
-        List<Road> roads=new ArrayList<>();for (int i=0;i<33;i++) roads.add(road("r"+i,tags(),geo(0,0),geo(20,i)));
+        List<Road> roads=new ArrayList<>();for (int i=0;i<41;i++) roads.add(road("r"+i,tags(),geo(0,0),geo(20,i)));
         Scene scene=compile(new Context(roads,true,false));assertEquals("route_only",scene.mode);assertTrue(scene.reason.contains("capacity"));
         scene=compile(context(road("bridge",tags("bridge","yes"),geo(-20,20),geo(20,20))));
         assertEquals("layer_context",scene.mode);assertEquals(2,scene.paths.size());assertEquals(1,scene.paths.get(1).layer);
@@ -89,14 +89,14 @@ public class JunctionCompilerTest {
     }
     @Test public void overflowCompactionPreservesEveryContextSegment() {
         List<Road> roads=new ArrayList<>();Set<String> expected=new HashSet<>();
-        for (int i=0;i<16;i++) {
+        for (int i=0;i<20;i++) {
             int y=-30+i*3;
             roads.add(road("a"+i,tags(),geo(-20,y),geo(0,y)));
             roads.add(road("b"+i,tags(),geo(0,y),geo(20,y)));
             expected.add(edge(new Point(-200,y*10),new Point(0,y*10)));
             expected.add(edge(new Point(0,y*10),new Point(200,y*10)));
         }
-        Scene scene=compile(new Context(roads,true,false));assertEquals("map_context",scene.mode);assertEquals(32,scene.paths.size());
+        Scene scene=compile(new Context(roads,true,false));assertEquals("map_context",scene.mode);assertEquals(40,scene.paths.size());
         Set<String> actual=new HashSet<>();
         for (Path p:scene.paths) if (p.role.equals("context")) for (int i=1;i<p.points.size();i++) actual.add(edge(p.points.get(i-1),p.points.get(i)));
         assertEquals(expected,actual);
@@ -120,6 +120,31 @@ public class JunctionCompilerTest {
         Route input=new Route(route().points,Collections.singletonList(new Decision(1,"RNDB2","",2)));
         JunctionCompiler engine=new JunctionCompiler();Scene a=engine.compile(input,0,Context.unavailable()),b=engine.compile(input,0,Context.unavailable());
         assertEquals(2,a.roundaboutExit);assertEquals(a.toMap("t",1,1,1,0,0),b.toMap("t",1,1,1,0,0));
+    }
+    @Test public void longRoundaboutIncludesNativeExitAndDepartureInFullAndWindowScenes() {
+        List<Geo> pts=Arrays.asList(geo(0,-100),geo(0,0),geo(30,30),geo(70,30),geo(110,0),geo(120,-20),geo(180,-20));
+        List<Decision> decisions=Collections.singletonList(new Decision(1,"RNDB2","Exit",2,4));
+        Route full=new Route(pts,decisions);
+        Route window=JunctionWindow.copy(pts.size(),decisions.size(),0,pts::get,decisions::get);
+        Context roads=context(road("roundabout",tags("highway","primary"),geo(0,0),geo(30,30),geo(70,30),geo(110,0)),
+                road("exit",tags("highway","primary"),geo(110,0),geo(120,-20)));
+        JunctionCompiler compiler=new JunctionCompiler();Scene scene=compiler.compile(full,0,roads);
+        assertEquals("map_context",scene.mode);assertTrue(scene.radiusDm>800);assertTrue(scene.radiusDm<=2000);
+        assertEquals(scene.toMap("s",1,1,100,0,0),compiler.compile(window,0,roads).toMap("s",1,1,100,0,0));
+        List<Point> chosen=scene.paths.get(0).points;
+        assertTrue(chosen.stream().anyMatch(p -> Math.abs(p.x-1100)<=1 && Math.abs(p.y)<=1));
+        assertTrue(chosen.get(chosen.size()-1).x>1100); // Route continues beyond the actual exit.
+        assertTrue(scene.paths.size()>=3); // Surrounding motor roads remain present.
+    }
+    @Test public void roundaboutOutsideSupportedViewIsExplicitlyUnavailable() {
+        List<Geo> pts=Arrays.asList(geo(0,-50),geo(0,0),geo(200,0),geo(210,0));
+        Scene scene=new JunctionCompiler().compile(new Route(pts,Collections.singletonList(new Decision(1,"RNDB2","",2,2))),0,Context.unavailable());
+        assertEquals("unavailable",scene.mode);assertTrue(scene.reason.contains("radius"));
+    }
+    @Test public void roundaboutWithoutExitNumberStillUsesNativeEndOffset() {
+        Decision roundabout=new Decision(1,"RNDB0","",0,4);
+        assertEquals(4,roundabout.roundaboutEndIndex);
+        assertEquals(-1,new Decision(1,"TR","",0,4).roundaboutEndIndex);
     }
     @Test public void longRouteWindowRetainsOriginalIndexes() {
         Route window=new Route(route().points,Arrays.asList(new Decision(100001,"TR","",0),new Decision(100002,"TL","",0)),100000);

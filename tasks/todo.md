@@ -1,5 +1,99 @@
 # Execution tasks: Garmin junction companion
 
+## Latest: haptics and Piazza roundabout
+
+- [x] Implement one 300 ms pulse per newly displayed native junction; retain
+  identity through distance updates, loading, stale data and reconnect. Simulator
+  SDK tests 29/29 and live seven-junction/seven-call route pass. Hardware feel and
+  vibration settings remain unverified. Identity collision on different reroutes
+  with the same session/index/maneuver remains a protocol limitation.
+- [x] Preserve exact user route, plus separately labeled 825 m native Piazza
+  approach with identical entry/exit and requested destination. Full live baseline
+  reproduces zero after entry and the 75 m selected-path cutoff before 130.3 m exit.
+- [x] Fix and live-check Piazza distance and exit representation using the native
+  roundabout end offset, expanded bounded window and preserved gray alternatives.
+  The user prefers one full diagram and exit countdown. 37 inside samples counted
+  132 m → 1 m; 36 paths and native/watch arrival passed. Visual readability and
+  physical-watch checks remain open.
+- [x] Recheck the two captured 32-path fallbacks: with a 40-path budget they now
+  retain map context (40/39 paths). Scenes above bounded capacity may still fall back.
+- [ ] Investigate the unexplained physical watch exit and verify on real devices.
+
+Private evidence and a launchable one-pass route are in
+`build/garmin-review/piazza-re-di-roma/`; no personal locations are tracked.
+
+## Immediate investigation — simulated endurance and reported watch exit
+
+**Status:** in_progress. User priority: reproduce and diagnose the reported watch
+return to its face before implementing preloading. The physical cause is unknown.
+
+Latest steering: routine tests must be short. The long realistic run was deliberately
+interrupted with seven completed journeys; it is preserved, not a four-hour pass.
+`sim-suite-short/` now has five native routes around 600 m each. Default regression
+is one pass with a 30-minute cap and normal early exit; smoke is one focus route,
+five-minute cap. Only explicit endurance repeats/accepts hours. Focused smoke
+measured 3.06 min wall time and reproduced both capacity failures. 108 host tests
+pass. The user connected the updated SDK; its live query confirmed CONNECTED.
+A normal five-second observer exit then left the SDK NOT_CONNECTED, correctly
+detected six seconds later. The restarted simulator later retained CONNECTED after the completed cache smoke.
+Use a manual Connection → Start only when the actual query reports disconnected;
+routes within a suite share one connection.
+Native REALISTIC controls motion/advancement; scripted edge cases remain deferred.
+The requested bounded turn cache and focused live verification are now complete;
+see its checkpoint below. See short REVIEW.md and the
+latest verification for exact evidence and remaining checks.
+
+- [x] Calculate all 20 directed pairs from five private points in native OsmAnd;
+  freeze the five with most non-straight instructions, park 15, and write separate
+  private point/route/timing reports. Estimated selected simulation time: 3.005 h
+  at 10 m/s, plus setup; this is not measured endurance completion.
+- [x] Add explicit-Waydroid-only runner, live watch observer with bounded memory,
+  atomic results and flushed logs, native-arrival/draw-ACK gates and fail-stop
+  behavior. Cold SDK preparation needs one manual Connection → Start action;
+  no manual action is expected between routes on the retained connection.
+- [x] Verify 95 host tests, x86 debug build/native planning, observer compilation,
+  and a 90-second live smoke with normal timer exit. The short run is correctly
+  incomplete because it cannot finish the selected routes.
+- [x] Inspect the deliberately interrupted `sim-suite-realistic/endurance-01` output;
+  distinguish simulator crashes, stalls, timeouts and host interruptions. At the
+  seven journeys completed; no crash recorded, two capacity failures saved.
+- [x] Check actual SDK readiness before and after a normal bounded app exit.
+  Result: CONNECTED before; code-0 observer exit; NOT_CONNECTED after six seconds.
+  Fresh query correctly rejects disconnection, but it does not fix the simulator
+  lifecycle/manual menu requirement. Evidence: `sim-suite-short/idle-sdk-probe/`.
+- [ ] Measure the first full five-case short regression pass; native planning of
+  all five and a completed focused smoke are verified, not full short-pass timing.
+- [ ] Reproduce the physical exit with useful evidence if simulator testing does
+  not reproduce it; simulator stability alone cannot close the physical issue.
+- [ ] Investigate two captured R007 capacity fallbacks (35/33 context pieces over
+  the ordinary 32-path budget), which caused about 69 seconds of route-only drawing
+  in the first pass. Preserve all relevant motor-road arms and the active run's
+  baseline. Saved live samples/native captures are under private
+  `sim-suite-realistic/findings/path-capacity/`; no fix is implemented.
+
+**Upcoming-turn cache — focused verification complete:** current + next Android
+scene, one worker, native advancement, strict route/lifecycle invalidation. 32 JVM
+junction tests, 108 host tests and x86 APK build pass. Actual live Q003 completed
+native/watch arrival and normal exit in 188.6 s. Four geometries exactly equal
+uncached baseline; two ~1 s inter-turn loading episodes reduced to zero in this
+one run. Source is idle, SDK remains CONNECTED after this normal exit. Earlier
+idle-probe disconnection is not universal. Full five-case/physical verification
+remain open. Evidence: `turn-cache/analysis.json` and `smoke-01/`.
+
+Host simulator crashed separately with SIGSEGV/GTK main-thread frames BEFORE cache
+installation; preserved diagnostics in `turn-cache/simulator-failure/`. Root cause
+unknown. Reopening recovered the simulator, not a verified permanent fix. The
+32-piece capacity fallback remains open and is unrelated to caching; this is our
+format budget, not a Garmin 32-road cap. Physical watch-exit cause also remains open.
+
+Deferred by the user's native-first choice: reproducible seeded stationary stops before/inside/after junctions,
+with fresh same-position zero-speed fixes. Pausing/frozen fixes are a different
+test. Compare native advancement and watch generation to investigate the user's
+traffic-light premature-change report independently from preloading.
+
+Instructions: `integrations/garmin/SIMULATOR_TESTS.md`; all private evidence under
+ignored `build/garmin-review/sim-suite-rome/`. No new commit is authorized.
+
 Read [plan.md](plan.md) first. T00 is complete; T01/T02/T03 are partially verified. The T06 raw-data probe checkpoint passes; geometry-usability review remains in progress. The user explicitly prioritized T06 before further watch integration. Read [verification.md](verification.md) for the reviewed evidence and outstanding gates. Record each task as `not_started`, `in_progress`, `pass`, `fail`, or `blocked`, with evidence paths. Do not mark a task complete using future-tense claims.
 
 Commands mentioning `integrations/garmin/dev.py`, new test classes or new apps are the interface to implement. Existing Gradle task names must be confirmed during baseline setup. `build/garmin-review/` is ignored output. The user subsequently authorized focused local commits for this checkpoint; pushing remains manual.

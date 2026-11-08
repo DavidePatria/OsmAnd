@@ -1,5 +1,262 @@
 # Start here: implement the Garmin junction companion
 
+## Latest — roundabout exit and full context verified (2026-11-08)
+
+The user requested the Piazza roundabout fix and authorized local commits and
+pre-1.0 version tags. `AGENTS.md` was consolidated to reflect the session's
+standing requirements. Current work targets native end-offset distance after entry,
+a selected-path window through the actual exit, and an adaptive bounded radius.
+Ordinary mapped context now allows 40 paths, still 48 points/path and 512 total;
+old watch/bridge builds must be updated before consuming ordinary scenes above 32.
+
+37 JVM geometry/progress, 19 bridge and 29 Garmin watch tests plus 109 host tests
+passed. Synthetic 40-path/512-point ordinary context rendered in the normal Garmin
+application heap; worst tested 40-path compact SDK packet was 6,636 bytes. Captured
+Piazza scene now includes its real exit and continuation with 36 paths, and two
+previous 33/35-piece fallbacks now yield 40/39 mapped paths. All captured-scene
+checks agree between full and local route windows. These are offline and simulator
+checks, not a physical-device or pixel review. The two isolated Waydroid apps were
+updated; the user reconnected the simulator. Native Piazza live verification passed at `roundabout-fix/live-01/`: 37 inside
+samples counted down 132 m → 1 m, with 36 map-context paths, native/watch arrival
+and normal exit. That run used RNDB2 before the final change that also recognizes
+roundabouts without a numbered exit; the final build and focused test passed.
+A final-build live rerun stopped before route start with `no_initial_watch_frame`;
+its evidence is under `roundabout-fix/live-final/` and it is not a live pass.
+The user chose one full roundabout diagram and exit countdown.
+Visual readability and physical-device verification remain open. Five short test
+cases were re-planned for the current APK hashes under `native-plan-v0_1_0-final/` and
+`selection-v0_1_0-final.json`; the local launchers use current fingerprints. The user
+requested the local v0.1.0 checkpoint. Check Git for the current commit and tag.
+
+## Earlier checkpoint — haptic alert and Piazza reproduction (2026-11-08)
+
+The requested Garmin alert is implemented: one 300 ms pulse when a fresh,
+drawable native junction first appears, including the first junction. Distance
+updates, stale/loading data and reconnect to the same scene do not retrigger it.
+The identity uses session + first anchor route index + maneuver; idle/arrival
+clears it. Identical keys after reroute can represent a different junction, a
+known limitation until the wire carries a route identity. Simulator SDK tests:
+29 pass, including duplicate/reconnect checks; production watch build passes.
+A live Q001 native route passed with seven distinct valid scene identities and
+seven vibration calls, no vibration errors. The physical motor/strength/ride has
+NOT been tested and no watch transfer was made. Evidence: private
+`junction-vibration/{watch-build,watch-tests,live-01,analysis.json}`.
+
+The user supplied exact Piazza dei Re di Roma endpoints. OsmAnd's exact 2.507 km
+route contains an initial detour; a separately labeled 825 m test starts from a
+captured point on that same approach and uses the exact requested destination.
+Native recalculation confirms the same Piazza entry, second exit and Via Appia
+Nuova departure. Native live simulation arrived normally in 124.4 s. Entry to
+exit is 130.3 m along the route; current yellow route export stops at 75 m from
+entry, so it cannot reach the exit. After entering, 32 of 33 sequential samples
+reported zero distance while OsmAnd still retained that roundabout; 40.7 s span.
+The watch recorded repeated zero draws. The findings are reproduced, not fixed.
+The 32-path fallback bug and physical watch-exit cause are separate and still open.
+Private route/report/launcher: `piazza-re-di-roma/README.md`, `start-test.sh`,
+`baseline-01/` and `baseline-analysis.json`. Exact and short cases are preserved.
+
+The first user-facing cache demo initially failed with no first watch frame and a
+stalled Garmin triangle. After preserving evidence, the stalled client and
+simulator were stopped with SIGTERM and restarted; user reconnected, second demo
+passed and user confirmed it worked. No claim that simulator startup is fixed.
+No personal phone or physical watch was accessed. No commit or push.
+
+## Latest checkpoint — current/next cache verified (2026-11-08)
+
+The user explicitly requested implementation after the connection check. Android
+now keeps current + one upcoming native junction scene, with one geometry worker.
+Current work wins; route identity/lifecycle invalidation discards obsolete scenes.
+Only OsmAnd advances the current turn. Watch protocol, route/fix freshness and
+road geometry are unchanged. First scene/cache misses can still require loading.
+
+32 focused JVM junction tests, 108 host tests and x86 debug APK build pass. Update
+was ONLY in verified Waydroid. All five frozen short cases were freshly re-planned.
+Live Q003 cache smoke passed native/actual-watch arrival and normal observer exit
+in 188.6 s total / 149.4 s native simulation. All four scene geometries exactly
+match the uncached baseline. Baseline had two inter-turn geometry-loading draws
+lasting 1007/1014 ms; this cache run had none (initial build excluded). Native
+REALISTIC timing is unseeded; this one route is not a full five-case/physical pass.
+Private evidence: `turn-cache/{geometry,android-build,smoke-01,analysis.json}`.
+
+Both 35/33-piece capacity fallbacks still reproduce. The 32-piece ordinary cap is
+our exporter/format budget, NOT a Garmin 32-road ceiling or an effect of caching.
+40-piece layered scenes already have simulator/SDK tests; any ordinary-budget
+revision must preserve all context and verify validators, packets and memory.
+This issue and the physical watch-exit cause remain OPEN.
+
+A separate host Garmin simulator SIGSEGV happened when the user reconnected,
+BEFORE cache installation. Saved core shows GObject/GTK3 main-thread frames;
+preceding log has GTK/FreeType errors. Cause is not established. Preserved evidence
+in `turn-cache/simulator-failure/`; simulator reopened after capture, user connected,
+and short cache test then completed. No production workaround was introduced.
+
+No test is running. Source is idle/not simulating. The fresh SDK query AFTER this
+normal route-test exit reports CONNECTED. The earlier five-second idle probe had
+reported NOT_CONNECTED after exit; do not infer that every normal exit disconnects
+SDK. Query actual current state, request manual Connection → Start only if needed.
+The current launcher uses `native-plan-turn-cache/plan.json` and
+`selection-turn-cache.json`; earlier baselines/hashes remain untouched. No phone,
+commit or push. See [test instructions](../integrations/garmin/SIMULATOR_TESTS.md).
+
+## Current workflow — short tests, no automatic endurance (2026-11-08)
+
+The user rejected multi-hour routine tests. The long realistic run was deliberately
+interrupted with seven completed journeys; preserve all evidence, never call it a
+four-hour pass. No test is currently running. Short smoke Q003 completed normally
+in 183.7 s wall time / 151.7 s native simulation, with real arrival ACKs and normal
+observer exit reason=completed, before its five-minute cap. The capacity defects
+reproduced at 34.9 s (35 pieces) and 85.2 s (33 pieces); they are NOT fixed.
+
+Use ignored `build/garmin-review/sim-suite-short/`: five explicit native endpoint
+pairs, approximately 570–600 m each, 3–5 turns each, 2.96 km / 18 turns total.
+They derive from the same five dense parents; Q003 includes both saved capacity
+locations, and native recalculation contains both. Normal OsmAnd REALISTIC motion
+and advancement are unchanged. No custom fix stream or speed-up clock. The newer cache checkpoint above supersedes
+this uncached baseline.
+
+Default `start-test.sh NEW_NAME` is regression: five short routes ONCE, 30-minute
+cap with normal early exit after arrivals. `start-test.sh NEW_NAME smoke` is one
+focus route, five-minute cap. Endurance requires explicit profile and hours.
+Routine profiles reject long manifests and hours arguments. Actual full short
+pass remains unmeasured; native journey references total 9.52 min, provisional
+expectation about 15–20 min with native cadence/stops, never a four-hour default.
+
+**Current handoff:** the user selected Connection → Start and the fresh SDK query
+reported CONNECTED. A five-second observer exited normally (code 0, reason=duration),
+but six seconds later the actual SDK reported NOT_CONNECTED. This is a recorded
+simulator/deployment lifecycle limitation, NOT an idle-readiness pass. The read-only
+query correctly detects it without stale ACKs or fake logs. One manual menu action
+may be needed per new deployment, not between routes within one suite. Evidence:
+`sim-suite-short/idle-sdk-probe/`. No long test was started.
+
+**Cache continuation:** implementation and focused live verification are complete;
+see the newer checkpoint above. Earlier no-prefetch entries describe older builds.
+
+Current inputs are `native-plan-turn-cache/plan.json` and `selection-turn-cache.json`;
+the local launcher and instructions reference them. Older smoke files retain their
+original bridge hash. 108 host tests, focused native smoke and debug bridge build
+pass. No phone/personal installation was touched. See private `REVIEW.md`,
+`routes.md`, and [instructions](../integrations/garmin/SIMULATOR_TESTS.md).
+
+## Interim findings — user returned (2026-11-08, 12:32 local)
+
+The realistic run is still active; leave its inputs, apps and simulators unchanged
+until its approximately 13:04 local timer end. All five routes completed once,
+R014/R004 also completed a second time. First pass measured about 141 minutes
+including setup. No watch runtime exception, scoped Android fatal event or SDK
+disconnect was found. This is an interim result, not the final endurance pass or
+closure of the physical watch-exit investigation.
+
+Concrete finding: two R007 junctions exceed the ordinary 32-path capacity after
+existing compaction (35/33 pieces). Actual watch output falls back to route_only
+for about 47/22 seconds, losing surrounding gray-road context. Two live samples,
+native route captures, hashes and decision-location links are saved privately in
+`sim-suite-realistic/findings/path-capacity/`. Investigate these without silently
+dropping road arms or relaxing limits. No fix has been implemented.
+
+The interim trace also has 128 brief loading episodes (maximum about 2.04 seconds).
+No sampled turn change occurred on entering or remaining stopped; this does not
+disprove the user's uncontrolled physical traffic-light report. Preloading stays
+last. Read private `sim-suite-realistic/INTERIM_FINDINGS.md` and updated `routes.md`
+for measured timings, limitations and saved cases, then the current result.json.
+
+## Current run — native REALISTIC and five densest routes (2026-11-08)
+
+The user chose native realistic simulation first and deferred unsupported scripted
+edge cases. The new four-hour run is detached and active under ignored
+`build/garmin-review/sim-suite-realistic/endurance-01/`, launched 08:02:58 UTC /
+09:02:58 Europe/Rome, approximate timer end 13:04 local. Read its `result.json`
+before touching the simulators. First live validation confirms `real_mode`,
+following/simulating true, actual watch draws and correlated bridge ACKs. This is
+running evidence, not a completed-route pass or explanation of the physical exit.
+The task sleep inhibitor is present; locking the desktop is permitted, but actual
+lock/suspend behavior must be judged from the run rather than assumed.
+
+All 20 routes were freshly calculated after the verified Waydroid-only APK update.
+The version-3 selection remains R014/R004/R007/R017/R020, 48.952 km and 99 turns.
+REALISTIC owns speed, mapped-light stops and unseeded noise; the 72 km/h setting
+and 94-minute estimate below are superseded constant-mode proposals. Native
+journey references total about 118 min; actual realistic durations are unmeasured.
+`routes.md` and `REVIEW.md` explain timings, coverage and commands. No custom
+movement, timestamped fixture generator, preloading or altered freshness policy.
+
+The old `sim-suite-rome/endurance-01` was deliberately interrupted at 07:58:59 UTC
+for this revision: 2,867 active draws, 1,737 active ACKs, sampled peak 44,256 bytes,
+no recorded crash. It is interrupted, not passed. Preserve its evidence. Native
+speed/mode controls and x86 APK build pass; 104 host tests pass. New runs copy/hash
+the host tools. A readiness fix accepts a fresh current-process draw ACK if the
+initial CONNECTED event has rolled out of Android's finite log buffer; send-success
+alone is not sufficient. Unsupported seven-case scripts remain deferred by choice.
+
+## Historical density/native-simulation proposal (2026-11-08)
+
+The user requested higher speed, five routes ranked by turn DENSITY, and mixed
+edge cases, then questioned whether scripted movement adds too much complexity.
+Native-first versus timestamped native input is awaiting their preference. No
+scripted movement or event generator has been added. The current four-hour run
+below is unchanged; do not report the proposed edge-case allocation as executed.
+
+Density selection is prepared under ignored `sim-suite-density/`: R014/R004/R007/
+R017/R020, 48.952 km, 99 non-straight instructions, 1.5–2.4 turns/km. Version 2
+selects native CONSTANT 20 m/s (72 km/h). IMPORTANT: native visits at most one
+route vertex per 1.5-second tick, so distance/speed underestimates timing. The
+vertex-step estimate is about 94 minutes plus setup, not the 41-minute lower bound.
+Private `REVIEW.md`, `routes.md` and `edge-cases-proposal.json` explain the change.
+
+Debug-only native speed/mode controls compile in the x86 APK; 100 host tests pass.
+No APK update or live new-speed validation has run. Before switching: preserve or
+deliberately interrupt the original run, update only Waydroid, regenerate the
+APK/map-hashed plan and selection, then verify actual mode/speed. The revised
+runner rejects old controls and version-1 selections. Existing runtime retains
+its already-loaded code and inputs. The physical watch exit is still unexplained.
+
+## Earlier constant baseline — reproduce the watch exit (2026-11-08)
+
+The user authorized a four-hour unattended live Waydroid + Garmin simulator run.
+`build/garmin-review/sim-suite-rome/endurance-01/` is the current evidence directory;
+read its `result.json` and launch log before touching either simulator. At launch,
+R002 was active with actual watch draws and matching bridge acknowledgements.
+This is an observed running checkpoint, not a completed endurance pass or a cause
+for the physical watch exit. Do not restart apps, change maps/APKs, or deploy a
+different watch build while the run is active. A stale running marker after host
+loss is not success. See [simulator instructions](../integrations/garmin/SIMULATOR_TESTS.md).
+
+All 20 directed routes between the user's five private points were calculated by
+native OsmAnd. The five with the most non-straight instructions are frozen in
+`selection.json`; the other 15 are parked. Their fixed-speed simulation estimate
+is about three hours plus setup. `routes.md` is the separate private route/timing
+report. Inputs, captures and runtime configuration remain outside Git. Waydroid
+portrait sizing and rotation lock survived a session restart.
+
+Crash diagnosis comes first. The user requested evaluating a small queue of
+upcoming junctions as the LAST implementation task. Consider bounded Android-side
+current/next geometry preparation with invalidation on route recalculation;
+OsmAnd must retain advancement authority. No prefetch change is implemented.
+Seeded stationary-intersection scenarios also remain deferred; see todo.md.
+
+## Navigation-start prompt (2026-11-07)
+
+The user transferred the full-round watch build and reported that it works well.
+OsmAnd now prompts to open the bridge at navigation start, with a remembered
+per-profile automatic option, and the debug build prefers the installed physical
+test bridge. See the latest verification entry for build and physical-test status.
+
+## Latest continuation — restored host and T12a (2026-11-06)
+
+The local `build/garmin-review/HANDOFF.md` records a newer fresh-host checkpoint
+than the historical section below. Destination marker, arrival screen and opt-in
+separate-bridge startup are implemented. On this host a real tethered Rome run
+produced about 1 Hz successful sends and drawing ACKs; a later native-arrival run
+showed destination markers and 166 actual watch arrival draws. Auto-start was not
+fully verified there. See the latest section of verification.md for the current
+restart and authenticated-launch observations. Physical behavior remains open.
+
+After restart Waydroid was restored with its visible UI, its explicit target was
+verified, and the saved Rome route was recalculated. After a simulator ADB error and
+tethered bridge restart, the user connected the simulator and the production watch
+app drew live map context with decreasing distance. Automatic watch opening is still
+unverified. No new commit is authorized.
+
 ## Latest checkpoint — connected Rome demo passed (2026-11-06)
 
 Read this before the historical checkpoints below. The user accepted the gray-road /

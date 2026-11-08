@@ -41,6 +41,18 @@ class SdkSerializationTest {
         val bytes=SdkWireProbe.roundTrip(SdkWireProbe.envelope(scene))
         println("SDK_WIRE_MAX_GEOMETRY bytes=$bytes limit=16384")
         assertTrue("Maximum valid bounded packet exceeds SDK limit: $bytes",bytes<16_384)
+        // Ordinary context now admits the same 40 paths as layered context.
+        // Production sends compact wire; include maximum ordinary ID lengths.
+        scene["paths"]=(0..39).map { i ->
+            val count=if(i<32)13 else 12
+            mapOf("id" to "路".repeat(31)+(0x4E00+i).toChar(),"role" to if(i==0)"selected" else "context",
+                "points" to (0 until count).map { n -> listOf(n*10,i) },
+                "anchorRefs" to if(i==0)anchors.mapIndexed { n,a -> listOf(a["id"],n) } else emptyList<Any>())
+        }
+        SnapshotCodec.validate(scene)
+        val ordinaryCompact=SdkWireProbe.compactRoundTrip(SdkWireProbe.envelope(scene))
+        println("SDK_WIRE_MAX_ORDINARY_40_COMPACT bytes=$ordinaryCompact limit=16384")
+        assertTrue(ordinaryCompact<16_384)
         scene["geometryMode"]="layer_context"
         scene["paths"]=(0..39).map { i ->
             val count=if(i==0)48 else if(i<=35)12 else 11

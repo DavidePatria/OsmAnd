@@ -22,7 +22,7 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
         val app = context.applicationContext as OsmandApplication
         val request = intent.getStringExtra("request")?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) } ?: return
         val operation = intent.getStringExtra("operation") ?: "state"
-        val result = JSONObject().put("request", request).put("operation", operation).put("deskVersion", 1)
+        val result = JSONObject().put("request", request).put("operation", operation).put("deskVersion", 2)
         try {
             check(!app.isApplicationInitializing) { "initializing" }
             val helper = app.routingHelper
@@ -34,12 +34,19 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
                 "state" -> Unit
                 "start" -> {
                     check(helper.isRouteCalculated && !helper.isRouteBeingCalculated) { "route not ready" }
+                    val requestedMode = when (intent.getStringExtra("simulation_mode") ?: "constant") {
+                        "constant" -> SimulationMode.CONSTANT
+                        "realistic" -> SimulationMode.REALISTIC
+                        else -> error("unsupported simulation mode")
+                    }
+                    val requestedSpeed = intent.getFloatExtra("speed_mps", 10f)
+                    require(requestedSpeed.isFinite() && requestedSpeed in 1f..35f) { "speed outside test bounds" }
                     simulation.stop()
                     restoreSettings(app)
                     oldMode = app.settings.simulateNavigationMode
                     oldSpeed = app.settings.simulateNavigationSpeed
-                    app.settings.simulateNavigationMode = SimulationMode.CONSTANT.key
-                    app.settings.simulateNavigationSpeed = 10f
+                    app.settings.simulateNavigationMode = requestedMode.key
+                    app.settings.simulateNavigationSpeed = requestedSpeed
                     val version = ++controlVersion
                     val route = helper.route
                     // The existing simulator's stop is cooperative. Let its old
@@ -107,6 +114,8 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
                 .put("routePoint", helper.route.currentRoute).put("routePoints", helper.route.immutableAllLocations.size)
                 .put("routeToken", System.identityHashCode(helper.route).toString(16))
                 .put("applicationMode", helper.appMode.stringKey)
+                .put("simulationMode", app.settings.simulateNavigationMode)
+                .put("simulationSpeedMps", app.settings.simulateNavigationSpeed)
                 .put("mapFiles", app.resourceManager.routingMapFiles.size)
             val direction = helper.getNextRouteDirectionInfo(NextDirectionInfo(), false)?.directionInfo
             result.put("nextRouteIndex", direction?.routePointOffset ?: -1)
@@ -114,6 +123,7 @@ class DebugJunctionDeskReceiver : BroadcastReceiver() {
                 result.put("fixTimeMs", it.time).put("fixAgeMs", System.currentTimeMillis() - it.time)
                     .put("fixLatitude", it.latitude).put("fixLongitude", it.longitude)
                     .put("fixSpeedMps", if (it.hasSpeed()) it.speed else JSONObject.NULL)
+                    .put("fixAccuracyM", if (it.hasAccuracy()) it.accuracy else JSONObject.NULL)
             }
             helper.lastProjection?.let {
                 result.put("projectionTimeMs", it.time).put("projectionProvider", it.provider)

@@ -212,9 +212,9 @@ public class RoutingHelper {
 	public void setFollowingMode(boolean follow) {
 		app.logRoutingEvent("setFollowingMode follow " + follow);
 		isPausedOnAADisconnect = false;
-		if (follow && !isFollowingMode) {
+		boolean navigationStarted = follow && !isFollowingMode;
+		if (navigationStarted) {
 			etaSpeedStartTime = System.currentTimeMillis();
-			net.osmand.plus.routing.companion.JunctionCompanionStarter.onNavigationStarted(app);
 		}
 		isFollowingMode = follow;
 		isPauseNavigation = false;
@@ -227,6 +227,9 @@ public class RoutingHelper {
 			}
 		} else {
 			app.startNavigationService(NavigationService.USED_BY_NAVIGATION);
+		}
+		if (navigationStarted) {
+			net.osmand.plus.routing.companion.JunctionCompanionStarter.onNavigationStarted(app);
 		}
 	}
 

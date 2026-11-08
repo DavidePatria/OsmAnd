@@ -21,7 +21,7 @@ import route_probe
 OSMAND = route_probe.PACKAGE
 BRIDGE = 'net.osmand.junction.bridge.debug'
 OPERATIONS = ('state', 'start', 'stop', 'pause', 'resume', 'freeze', 'cancel', 'detour', 'reload', 'grant_bridge', 'deny_bridge', 'enable_auto_start', 'disable_auto_start')
-BRIDGE_OPERATIONS = ('start_tethered', 'stop_tethered')
+BRIDGE_OPERATIONS = ('start_tethered', 'stop_tethered', 'sdk_state')
 
 
 class Desk:
@@ -38,7 +38,7 @@ class Desk:
     def command(self, *args, timeout=30):
         return route_probe.command(self.adb+list(args), timeout=timeout)
 
-    def probe(self, operation='state', bridge=False):
+    def probe(self, operation='state', bridge=False, simulation=None):
         if operation not in OPERATIONS+BRIDGE_OPERATIONS or (operation in BRIDGE_OPERATIONS and not bridge):
             raise ValueError('unknown operation')
         request = uuid.uuid4().hex
@@ -47,8 +47,20 @@ class Desk:
                      OSMAND+'/net.osmand.plus.routing.companion.DebugJunctionDeskReceiver')
         action = 'net.osmand.junction.bridge.SNAPSHOT' if bridge else 'net.osmand.junction.DESK'
         if operation in BRIDGE_OPERATIONS:action='net.osmand.junction.bridge.DESK'
-        self.command('shell', shlex.join(['am', 'broadcast', '-n', component, '-a', action,
-            '--es', 'request', request, '--es', 'operation', operation, '--es', 'scenario', 'current-route']))
+        arguments = ['am', 'broadcast', '-n', component, '-a', action,
+            '--es', 'request', request, '--es', 'operation', operation, '--es', 'scenario', 'current-route']
+        if simulation is not None:
+            if operation != 'start' or bridge or simulation.get('mode') not in ('constant', 'realistic'):
+                raise ValueError('native simulation configuration only applies to source start')
+            arguments += ['--es', 'simulation_mode', simulation['mode']]
+            if simulation['mode'] == 'constant':
+                speed = simulation.get('speedMps')
+                if type(speed) not in (int, float) or not math.isfinite(speed) or not 1 <= speed <= 35:
+                    raise ValueError('native simulation speed must be 1..35 m/s')
+                arguments += ['--ef', 'speed_mps', str(speed)]
+            elif 'speedMps' in simulation:
+                raise ValueError('realistic mode owns its speed; do not supply a constant speed')
+        self.command('shell', shlex.join(arguments))
         deadline = time.monotonic()+8
         path = f'/sdcard/Android/data/{package}/files/junction-desk/latest.json'
         while time.monotonic()<deadline:
