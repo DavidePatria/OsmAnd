@@ -57,6 +57,71 @@ on native vertex stepping, road speed and mapped stops. Do not reuse the former
 94-minute constant-speed or 141-minute full-route duration for this short suite.
 Precise noisy traces are not reproducible because native noise is unseeded.
 
+## Roundabout regression: Piazza dei Re di Roma
+
+This focused scenario covers the reported problem where the watch stayed at
+zero metres while travelling around the Piazza. The locally saved short route
+is approximately 825 m and takes roughly two minutes in native REALISTIC mode;
+the runner caps it at five minutes. OsmAnd calculates and drives the route, and
+the separate bridge sends live data to the Forerunner 970 simulator. The private
+route endpoints, actual route report and earlier results are in
+`build/garmin-review/piazza-re-di-roma/README.md`. These local inputs are ignored
+by Git; copy or recreate them on a new machine rather than expecting a checkout
+alone to contain them. Setup, SDK, map and private configuration prerequisites
+are described below and in [JUNCTION.md](../../JUNCTION.md).
+
+With the simulators connected, from the repository root run:
+
+```sh
+./build/garmin-review/piazza-re-di-roma/start-test.sh roundabout-01
+```
+
+Choose a new name for each run: the runner refuses to overwrite existing
+evidence. If the connection is not ready, use the `prepare` command below with a
+new output directory and select **Connection → Start** in Garmin when prompted.
+Leave Waydroid visible, with its offline map and development apps installed. The
+launcher inhibits sleep; keep the machine powered with its lid open. The test
+changes the route in the isolated Waydroid development app, not on the phone.
+
+On the watch, check that the full roundabout and its actual exit are visible,
+with surrounding motor roads in grey and the selected route in yellow. Before
+entry, the distance refers to the entry; after entry, it refers to the exit and
+can rise at the moment the target changes. It should count down towards the exit
+rather than remain at zero inside the roundabout. OsmAnd controls advancement to
+the next junction. Visual inspection is still necessary: an automated arrival or
+drawing callback alone does not establish that the exit is readable.
+
+Find the run under `build/garmin-review/piazza-re-di-roma/roundabout-01/`.
+`result.json` records completion or failure and native/watch arrival; inspect
+`samples.jsonl` and `watch.log` for progress and draws. A timeout, an incomplete
+route, or `no_initial_watch_frame` is not a pass. The latter occurred once when
+the Garmin simulator was stuck at its startup triangle; save the failure and
+restart the simulator before reconnecting. Physical Bluetooth, GPS, watch
+vibration and riding readability require separate device testing.
+
+On 2026-11-08, `demo-20261108` passed with the final build: native and watch
+arrival were acknowledged. The 33 sampled observations after entry counted from
+121 m to 8 m, with 36 mapped paths and no zero-distance samples. This records
+observed simulator behavior, not a substitute for a visual or physical review.
+
+After an app or map update, create a new plan and selection so the saved
+environment fingerprints match the installed Waydroid apps and maps:
+
+```sh
+python3 -B integrations/garmin/sim_suite.py plan \
+  --waydroid-config ~/.config/osmand-junction/waydroid.json \
+  --suite build/garmin-review/piazza-re-di-roma/short-suite.json \
+  --out build/garmin-review/piazza-re-di-roma/plan-NEW
+python3 -B integrations/garmin/sim_suite.py select \
+  --suite build/garmin-review/piazza-re-di-roma/short-suite.json \
+  --plan build/garmin-review/piazza-re-di-roma/plan-NEW/plan.json \
+  --out build/garmin-review/piazza-re-di-roma/selection-NEW.json
+```
+
+Update the private `start-test.sh` to point to those new paths before using it;
+preserve prior plans and evidence. Planning recalculates routes in Waydroid, so
+do not run it while another test owns the simulator or navigation is active.
+
 ## Setup and launch
 
 Use the private explicit Waydroid target for every Android command. Source debug

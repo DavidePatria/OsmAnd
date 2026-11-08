@@ -132,6 +132,8 @@ class NavigationService:Service() {
         val displayedSeq=ack?.get("displayedSeq") as? Int
         val displayedGeneration=ack?.get("displayedGeneration") as? Int
         val displayedState=ack?.get("displayedState") as? String
+        DiagnosticLog.record(this,"watch_request",JSONObject().put("requestId",ticket.id)
+            .put("displayedGeneration",displayedGeneration).put("displayedSeq",displayedSeq).put("displayedState",displayedState))
         if(displayedSeq!=null && displayedGeneration!=null && displayedSeq in 0..1_000_000 && displayedGeneration in 0..1_000_000 &&
             displayedState in listOf("active","idle","recalculating","unavailable","arrived","stale_source","stale_transport")) {
             Log.i("JunctionBridge","DRAW_ACK generation=$displayedGeneration seq=$displayedSeq state=$displayedState")
@@ -167,9 +169,15 @@ class NavigationService:Service() {
                 }
                 val now=SystemClock.elapsedRealtime()
                 val response=if(scene!=null)delivery.response(ticket,scene,now) else delivery.unavailable(ticket,failure,now)
+                if (scene != null) {
+                    // Geometry is relative to the junction; omit street names and geographic coordinates.
+                    DiagnosticLog.scene(this, ticket.id, scene)
+                } else DiagnosticLog.record(this,"source_unavailable",JSONObject().put("requestId",ticket.id).put("reason",failure))
+                if (response == null) DiagnosticLog.record(this,"response_expired",JSONObject().put("requestId",ticket.id))
                 val instance=sdk
                 if(response!=null && instance!=null && active) {
                     val wire=CompactWire.encode(response)
+                    DiagnosticLog.record(this,"send_started",JSONObject().put("requestId",ticket.id).put("bytes",wire.size))
                     Log.i("JunctionBridge","WIRE_BYTES ${wire.size} request=${ticket.id}")
                     instance.sendMessage(target,watch,wire) { _,_,result -> onMain {
                         delivery.finish(ticket)
@@ -188,6 +196,7 @@ class NavigationService:Service() {
     private fun onMain(action:()->Unit) { main.post { if(active)action() } }
     private fun status(text:Int,event:String) {
         Log.i("JunctionBridge",event)
+        DiagnosticLog.record(this,"bridge_status",JSONObject().put("event",event))
         val label=getString(text)
         if(prefs.getString("status",null)==label)return
         prefs.edit().putString("status",label).apply()

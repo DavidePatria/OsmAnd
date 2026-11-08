@@ -461,3 +461,36 @@ turn; recalculation and invalid lifecycle states clear preparation. No extra
 watch queue, routing engine or motion simulation is introduced. See
 [cache rules](contract.md) and [short tests](SIMULATOR_TESTS.md); capacity-limited
 scenes and physical watch-exit diagnosis remain separate open issues.
+
+### Ride diagnostics (development bridge)
+
+The debug bridge includes an opt-in **Record diagnostics** switch. Start a new
+recording before navigating; confirmation warns that the prior local recording
+will be deleted. The bridge app stores the most recent events privately in two
+rotating files (up to 4 MiB each). Recording remains enabled across process
+restarts until switched off. Only events while the bridge is running are captured;
+process termination or lost watch requests can leave gaps, and a connection loss
+or missing request does not itself prove a watch crash. No network heartbeat is
+added. A bounded worker queue may drop events; its cumulative dropped count is
+recorded on later entries. If storage becomes unavailable, events may be lost.
+
+Records include timestamps, bridge/source states, request and displayed-sequence
+acknowledgements, scene metadata, periodically repeated relative junction geometry,
+and send sizes/results. They omit absolute GPS coordinates and street names;
+relative shapes and timing may still reveal where a person travelled. At the end of
+the ride, add an optional symptom and approximate time, choose **Save / export
+recording**, and select a destination in Android's document picker. The exported
+JSONL begins with the note and then the retained older/newer log events. Inspect
+and share it deliberately; it is never uploaded automatically. Stop recording after
+export if desired; stopping the connection alone does not disable the switch. Save
+the file before starting a new recording. If an app is paused or killed by Android,
+the trace cannot include events that never reached the bridge.
+
+The separate hardware-test identity `net.osmand.junction.bridge.diagnostics` is
+used when existing bridge installations have different signing keys; it is started
+manually and requires its own OsmAnd connected-app permission. Stop the older
+bridge before using it so only one companion registers for watch events. The
+existing OsmAnd automatic-launch selector may still open an older bridge identity;
+use the Diagnostics launcher manually and decline the old bridge prompt. Verify
+physical permission, background behavior and export on the phone; simulator success
+alone does not establish them.

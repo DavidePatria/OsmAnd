@@ -1,6 +1,29 @@
 # Start here: implement the Garmin junction companion
 
+## Current — diagnostic recording and physical desk test (2026-11-08)
+
+The opt-in bridge recorder and export UI are built; see the ride diagnostics
+section in `integrations/garmin/README.md`. A matching-signed OsmAnd ARM64 update
+was installed and its APK hash verified; the latest watch PRG was transferred via
+MTP and its size verified. Existing bridge signing keys did not match, so a new
+separate `Junction Diagnostics` identity was installed, without removing old
+bridges. The watch receives SDK sends, but OsmAnd returned permission-or-source
+errors until the new connected-app permission was granted. Hardware simulated
+navigation then sent active scenes and the watch acknowledged drawings. The watch
+returned to its face; the bridge remained running and its private trace plus the
+user-exported report are preserved in ignored `diagnostics/physical-watch-exit/`.
+The last watch ACK was generation 10/sequence 80; the next SDK send reported
+success. Root cause remains unknown; inspect watch logs read-only. Real-ride
+checks remain open. See the latest verification entry.
+
 ## Latest — roundabout exit and full context verified (2026-11-08)
+
+The final-build live retry `piazza-re-di-roma/demo-20261108/` passed native
+and watch arrival after restarting the stuck simulator. During the roundabout,
+33 samples counted 121 m to 8 m with 36 mapped paths and no zero samples.
+See the roundabout section in `integrations/garmin/SIMULATOR_TESTS.md` for the
+repeatable command, setup, expectations and evidence. Visual and physical review
+remain separate. The previous `live-final` startup failure remains recorded below.
 
 The user requested the Piazza roundabout fix and authorized local commits and
 pre-1.0 version tags. `AGENTS.md` was consolidated to reflect the session's

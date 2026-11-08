@@ -2,6 +2,7 @@ package net.osmand.junction.bridge
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,6 +12,10 @@ import android.os.Looper
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.EditText
+import android.widget.ScrollView
+import android.widget.Switch
+import android.widget.Toast
 import org.json.JSONArray
 
 /** Explicit user start/stop. No automatic boot start or battery-setting changes. */
@@ -20,6 +25,7 @@ class NavigationActivity : Activity() {
     private lateinit var choices:LinearLayout
     private var lastDevices=""
     private var automatic=false
+    private var diagnosticNote: EditText? = null
     private val refresh=object:Runnable {
         override fun run() {
             val prefs=getSharedPreferences(NavigationService.PREFS,MODE_PRIVATE)
@@ -51,10 +57,48 @@ class NavigationActivity : Activity() {
             stopService(Intent(this@NavigationActivity,NavigationService::class.java))
         } })
         choices=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL };layout.addView(choices)
-        setContentView(layout)
+        if (BuildConfig.DEBUG) addDiagnostics(layout)
+        setContentView(ScrollView(this).apply { addView(layout) })
         automatic=intent.getBooleanExtra("auto_start_from_osmand",false) && callingPackage==NavigationService.OSMAND
         if(automatic)android.util.Log.i("JunctionBridge","AUTO_START authenticated OsmAnd caller")
         if(automatic)startBridge()
+    }
+    private fun addDiagnostics(layout: LinearLayout) {
+        val prefs=getSharedPreferences(NavigationService.PREFS,MODE_PRIVATE)
+        layout.addView(TextView(this).apply { text=getString(R.string.diagnostics_explanation);setPadding(0,24,0,8) })
+        val toggle=Switch(this).apply { text=getString(R.string.diagnostics_record);isChecked=prefs.getBoolean("diagnostics",false) }
+        layout.addView(toggle)
+        toggle.setOnClickListener {
+            if (toggle.isChecked) {
+                toggle.isChecked=false
+                AlertDialog.Builder(this).setMessage(R.string.diagnostics_replace)
+                    .setNegativeButton(android.R.string.cancel,null)
+                    .setPositiveButton(R.string.diagnostics_start) { _, _ ->
+                        DiagnosticLog.start(this)
+                        prefs.edit().putBoolean("diagnostics",true).apply()
+                        toggle.isChecked=true
+                    }.show()
+            } else {
+                DiagnosticLog.record(this,"recording_stopped")
+                prefs.edit().putBoolean("diagnostics",false).apply()
+            }
+        }
+        diagnosticNote=EditText(this).apply { hint=getString(R.string.diagnostics_note);maxLines=3 }
+        layout.addView(diagnosticNote)
+        layout.addView(Button(this).apply { text=getString(R.string.diagnostics_export);setOnClickListener {
+            val intent=Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json").putExtra(Intent.EXTRA_TITLE,"junction-diagnostics.jsonl")
+            startActivityForResult(intent,42)
+        } })
+    }
+    @Deprecated("Activity result is used for compatibility with the existing Activity")
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==42 && resultCode==RESULT_OK) data?.data?.let { uri ->
+            DiagnosticLog.export(this,uri,diagnosticNote?.text?.toString().orEmpty()) { success ->
+                Toast.makeText(this,if(success) R.string.diagnostics_saved else R.string.diagnostics_save_failed,Toast.LENGTH_LONG).show()
+            }
+        }
     }
     private fun startBridge() {
         val permissions=mutableListOf<String>()

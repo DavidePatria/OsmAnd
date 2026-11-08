@@ -1290,3 +1290,48 @@ with `no_initial_watch_frame`; no Piazza scenario began. The connected simulator
 was retained for diagnosis. This does not replace the earlier RNDB2 live pass and
 leaves live validation of the exact final APK open. Both private route suites were
 re-planned against the final installed Waydroid APK before this attempt.
+
+Final-build Piazza retry `piazza-re-di-roma/demo-20261108/` passed after restarting
+the retained stuck simulator: native and watch arrival acknowledged. Among 33
+sampled RNDB observations after entry, distance went 121 m to 8 m with no zeros;
+all had 36 map-context paths. Sequential samples do not prove pixel readability.
+The earlier `live-final` no-initial-frame failure remains preserved.
+
+## Ride diagnostics and physical simulated watch exit (2026-11-08)
+
+The debug bridge now has an opt-in private rolling recorder and Android document
+export. Bridge host tests passed 20/20, the diagnostic bridge and fr970 watch
+builds passed, and a fresh ARM64 OsmAnd development build passed. The isolated
+OsmAnd phone app was update-installed with matching signing and verified APK hash;
+its data was retained. The watch PRG transfer passed a size check; the Garmin MTP
+volume was unmounted. Existing bridge signing keys did not match, so a new separate
+`net.osmand.junction.bridge.diagnostics` package was installed without removal of
+existing apps. This package requires its own OsmAnd connected-app permission and
+manual start; automatic startup still targets the older identities.
+
+The user enabled recording and ran native simulated navigation on the physical
+phone and watch. Source requests initially returned `permission_or_source_error`;
+after granting access, SDK sends and watch active draw acknowledgements succeeded.
+The user then reported the watch returned to its face. The current private log and
+the user-exported report were preserved under ignored `diagnostics/physical-watch-exit/`.
+The export contained 659 valid JSONL records, including watch requests, source
+scenes and send results; no absolute GPS or road-name fields were found. No dropped
+log events were recorded. Android's picker appended `.json` and saved in Downloads.
+
+The last watch request acknowledged active generation 10/sequence 80. The bridge
+sent sequence 81 and Garmin's SDK reported success; that is not proof of watch
+receipt or drawing. No further request was present in the captured interval. The
+last full preceding geometry was map context with 26 paths/78 points; no conclusion
+about the cause of the watch exit follows from those counts. The bridge process was
+still running. The user's report and these events narrow the failure window; a
+watch crash log and reproduction are still needed before declaring a root cause or
+fix. Physical Bluetooth is exercised, but real GPS, riding, battery and haptics
+remain separate checks. The user is connecting the watch for read-only log review.
+
+A 16-frame replay was prepared from the last 29 seconds of the exported scenes,
+reconstructing repeated geometry from the prior full entry. The diagnostic log
+omits session and road name, so replay substitutes a fixed session and blank name;
+this is not a complete wire replay or physical Bluetooth test. The Garmin simulator
+itself exited during startup, before playback, so the replay is a failure with no
+verdict about the captured diagrams. Evidence is in ignored
+`diagnostics/physical-watch-exit/simulator-replay/`; no automatic retry was made.

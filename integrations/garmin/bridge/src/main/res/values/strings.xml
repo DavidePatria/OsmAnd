@@ -1,4 +1,12 @@
 <resources>
+    <string name="diagnostics_explanation">Diagnostics are optional. The most recent events are stored privately on this phone, including junction shapes and timing, but no GPS coordinates or road names. Export a recording after a ride to share it.</string>
+    <string name="diagnostics_record">Record diagnostics</string>
+    <string name="diagnostics_replace">Starting a new recording deletes the previous local recording. Export it first if you want to keep it.</string>
+    <string name="diagnostics_start">Start recording</string>
+    <string name="diagnostics_note">Optional: what happened and approximately when?</string>
+    <string name="diagnostics_export">Save / export recording</string>
+    <string name="diagnostics_saved">Recording exported.</string>
+    <string name="diagnostics_save_failed">Could not export a recording. Start recording first.</string>
     <string name="navigation_watch_prompt">Confirm opening Junction on your watch.</string>
     <string name="navigation_watch_not_installed">Install the Junction app on your watch, then try again.</string>
     <string name="navigation_watch_open_manually">Open Junction on your watch to continue.</string>
