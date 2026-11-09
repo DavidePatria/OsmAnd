@@ -23,3 +23,23 @@ function compactGolden1() as ByteArray {return compactBytes("4a430200000c636f6d7
     var current=compactGolden0(),old=current.slice(0,current.size()-1);old[2]=1;
     return compactEqual(CompactWire.decode(current),CompactWire.decode(old));
 }
+
+(:test) function compactHeaderPreservesRequestGate(logger as Test.Logger) as Boolean {
+    var gate=new NavigationRequestGate();gate.reset("compact-test");gate.begin(0);
+    var bytes=compactGolden0(),header=CompactWire.header(bytes);
+    if (!gate.expects(header,100) || gate.expects(header,3000)) { return false; }
+    header["requestId"]=2;
+    if (gate.expects(header,100) || CompactWire.header(bytes.slice(0,3))!=null) { return false; }
+    return gate.expects(CompactWire.header(bytes),100);
+}
+
+(:test) function compactReplacementClearsOnlyExpectedPacket(logger as Test.Logger) as Boolean {
+    var gate=new NavigationRequestGate(),state=new NavigationState(),scene=testScene();
+    if (!state.accept(scene,0)) {return false;}
+    gate.reset("other-epoch");gate.begin(0);
+    var bytes=compactGolden0();
+    if (gate.acceptCompactOwned(bytes,100,state) || state.scene()==null) {return false;}
+    gate.reset("compact-test");gate.begin(0);
+    if (gate.acceptCompactOwned(bytes.slice(0,25),100,state) || state.scene()!=null) {return false;}
+    return gate.acceptCompactOwned(bytes,200,state) && state.scene()!=null;
+}

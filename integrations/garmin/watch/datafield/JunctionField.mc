@@ -89,7 +89,9 @@ class FieldInput {
     }
     function onPhone(message as Communications.PhoneAppMessage) as Void {
         // CompactWire allocates a fresh object graph; no caller keeps it after this callback.
-        if(_connected && message.data instanceof ByteArray) { _gate.acceptOwned(CompactWire.decode(message.data),System.getTimer(),_state); }
+        if(_connected && message.data instanceof ByteArray) {
+            _gate.acceptCompactOwned(message.data,System.getTimer(),_state);
+        }
     }
     function didDraw(scene as Dictionary?,status as String) as Void {
         _displayed=scene==null?null:{"session"=>scene["session"],"generation"=>scene["generation"],"seq"=>scene["seq"],"state"=>status};

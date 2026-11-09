@@ -134,6 +134,10 @@ class NavigationState {
         var scene=SceneDecoder.decodeOwned(value);
         return acceptScene(scene,now);
     }
+    //! Only a scene just returned by SceneDecoder.decodeOwned may be passed here.
+    function acceptValidatedOwned(scene as Dictionary, now as Number) as Boolean {
+        return acceptScene(scene,now);
+    }
     private function acceptScene(scene as Dictionary?,now as Number) as Boolean {
         if (scene==null) { return false; }
         if (_generation>=0 && _session.equals(scene["session"])) {

@@ -15,6 +15,12 @@ module CompactWire {
         if (value.size()>8192) {return null;}
         try {return new CompactReader(value).reply();} catch(error) {return null;}
     }
+    //! Read only the bounded transport header before releasing the previous
+    //! frame in a memory-constrained data field. Full decode still follows.
+    function header(value as Object?) as Dictionary? {
+        if (!(value instanceof ByteArray) || value.size()>8192) { return null; }
+        try { return new CompactReader(value).header(); } catch(error) { return null; }
+    }
 }
 class CompactReader {
     private var _data as ByteArray;
@@ -41,12 +47,16 @@ class CompactReader {
         var bytes=_data.slice(_at,_at+size);_at+=size;
         return StringUtil.convertEncodedString(bytes,{:fromRepresentation=>StringUtil.REPRESENTATION_BYTE_ARRAY,:toRepresentation=>StringUtil.REPRESENTATION_STRING_PLAIN_TEXT,:encoding=>StringUtil.CHAR_ENCODING_UTF8}) as String;
     }
-    function reply() as Dictionary? {
+    function header() as Dictionary? {
         if(u()!=74 || u()!=67) {return null;}
         _format=u();if(_format!=1 && _format!=2) {return null;}
         var kind=count(1),epoch=text(),id=u();
         var result={"version"=>1,"kind"=>kind==0?"junction_snapshot":"junction_unavailable","epoch"=>epoch,"requestId"=>id};
-        if(kind==1) {result["reason"]=text();} else {result["scene"]=scene();}
+        return result;
+    }
+    function reply() as Dictionary? {
+        var result=header(); if(result==null) {return null;}
+        if(result["kind"].equals("junction_unavailable")) {result["reason"]=text();} else {result["scene"]=scene();}
         if(_at!=_data.size()) {return null;}
         return result;
     }

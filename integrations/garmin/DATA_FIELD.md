@@ -41,7 +41,9 @@ are separate steps. Do not replace a personal OsmAnd installation.
    phone's standalone-app prompt.
 
 Phone-to-watch delivery, activity lifecycle, vibration, layout and battery
-behavior on real hardware remain to be verified. The separately investigated
+behavior on real hardware remain to be verified. On 2026-11-09 the user
+reviewed and approved a paused simulator preview of an actual recorded Piazza
+junction with 19 road paths. It was a recording, not a live connection. The separately investigated
 standalone app's prompted-launch exit is not resolved by this feature.
 
 ## Simulator and memory boundaries
@@ -50,7 +52,18 @@ The data field uses the same validated compact protocol and renderer as the
 standalone app, but its activity callbacks replace the standalone timer. A
 freshly decoded compact packet transfers ownership of its road points to the
 field to reduce peak allocations; the standalone app retains its normal copy
-semantics. A synthetic maximum-size scene has rendered in the field simulator;
-that alone does not prove successive maximum-size packets, actual transport,
-physical Bluetooth behavior, or visual readability. Repeat the full end-to-end
-and real-watch checks before relying on it for a ride.
+semantics. The field validates the expected packet header and releases its old
+scene before decoding the replacement, because holding two maximum scenes caused
+an out-of-memory error. An expected but malformed replacement clears the old
+scene; an unrelated or expired packet does not. This can briefly leave no scene
+if a replacement is invalid, but never displays fabricated or stale roads.
+Duplicate validation was removed from the ownership path to avoid a watchdog
+timeout. These are field-memory tradeoffs, not physical transport measurements.
+
+After those changes, 32 data-field and 32 standalone watch regression tests
+passed. A simulator stress fixture decoded and drew two consecutive synthetic
+40-path/512-point compact scenes in the actual data-field runtime, with about
+55 KB free after the second draw. It does not cover live SDK transport, every
+possible scene, physical Bluetooth, or a real activity lifecycle. A live
+simulator check and real-watch checks remain necessary before relying on it for
+a ride. Evidence is in ignored `build/garmin-review/datafield/poc-*` directories.

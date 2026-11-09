@@ -16,14 +16,24 @@ class NavigationRequestGate {
         return {"version"=>1,"kind"=>"junction_request","epoch"=>_epoch,"requestId"=>_pending};
     }
     function abandon(id as Number) as Void { if (id==_pending) { _pending=0; } }
+    function expects(value as Object?, now as Number) as Boolean {
+        return value instanceof Dictionary && SceneDecoder.integer(value["version"],1,1) &&
+            value["kind"] instanceof String && (value["kind"].equals("junction_snapshot") || value["kind"].equals("junction_unavailable")) &&
+            value["epoch"] instanceof String && value["epoch"].equals(_epoch) && _pending!=0 &&
+            SceneDecoder.integer(value["requestId"],1,1000000) && value["requestId"]==_pending && now>=_sentAt && now-_sentAt<3000;
+    }
     function accept(value as Object?, now as Number, state as NavigationState) as Boolean { return acceptInternal(value,now,state,false); }
+    //! The activity field cannot hold two maximum-size scenes simultaneously.
+    //! An expected but malformed replacement clears the old scene safely.
+    function acceptCompactOwned(bytes as Object?, now as Number, state as NavigationState) as Boolean {
+        if (!expects(CompactWire.header(bytes),now)) { return false; }
+        state.invalidate();
+        return acceptOwned(CompactWire.decode(bytes),now,state);
+    }
     //! Accept only a newly decoded compact packet that no other caller retains.
     function acceptOwned(value as Object?, now as Number, state as NavigationState) as Boolean { return acceptInternal(value,now,state,true); }
     private function acceptInternal(value as Object?, now as Number, state as NavigationState, owned as Boolean) as Boolean {
-        if (!(value instanceof Dictionary) || !SceneDecoder.integer(value["version"],1,1) ||
-            !(value["kind"] instanceof String) || !(value["kind"].equals("junction_snapshot") || value["kind"].equals("junction_unavailable")) ||
-            !(value["epoch"] instanceof String) || !value["epoch"].equals(_epoch) ||
-            _pending==0 || !SceneDecoder.integer(value["requestId"],1,1000000) || value["requestId"]!=_pending || now<_sentAt || now-_sentAt>=3000) { return false; }
+        if (!expects(value,now)) { return false; }
         if (value["kind"].equals("junction_unavailable")) {
             if (!(value["reason"] instanceof String) || value["reason"].length()>80) { return false; }
             state.invalidate();_pending=0;return true;
@@ -35,7 +45,7 @@ class NavigationRequestGate {
         for (var i=0;i<ages.size();i+=1) {
             var age=decoded[ages[i]]+roundTrip;decoded[ages[i]]=age>60000?60000:age;
         }
-        if (!(owned?state.acceptOwned(decoded,now):state.accept(decoded,now))) { return false; }
+        if (!(owned?state.acceptValidatedOwned(decoded,now):state.accept(decoded,now))) { return false; }
         _pending=0;return true;
     }
 }
