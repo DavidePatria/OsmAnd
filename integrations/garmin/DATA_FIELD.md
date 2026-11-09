@@ -43,7 +43,15 @@ are separate steps. Do not replace a personal OsmAnd installation.
 Phone-to-watch delivery, activity lifecycle, vibration, layout and battery
 behavior on real hardware remain to be verified. On 2026-11-09 the user
 reviewed and approved a paused simulator preview of an actual recorded Piazza
-junction with 19 road paths. It was a recording, not a live connection. The separately investigated
+junction with 19 road paths. Separately, a live Waydroid native realistic
+simulation of the saved Piazza route ran with the actual Garmin simulator and
+tethered SDK. The user confirmed that junctions and distance updated correctly.
+The bridge recorded 75 active drawing acknowledgements over about 121 seconds,
+then acknowledged the arrival screen; the SDK was still connected. This is one
+short simulator run, not physical-watch verification. The source working tree
+also contained the separate moving-map experiment; artifact hashes and the
+captured bridge log are under ignored `build/garmin-review/datafield/poc-live/`.
+The separately investigated
 standalone app's prompted-launch exit is not resolved by this feature.
 
 ## Simulator and memory boundaries
@@ -64,6 +72,6 @@ After those changes, 32 data-field and 32 standalone watch regression tests
 passed. A simulator stress fixture decoded and drew two consecutive synthetic
 40-path/512-point compact scenes in the actual data-field runtime, with about
 55 KB free after the second draw. It does not cover live SDK transport, every
-possible scene, physical Bluetooth, or a real activity lifecycle. A live
-simulator check and real-watch checks remain necessary before relying on it for
-a ride. Evidence is in ignored `build/garmin-review/datafield/poc-*` directories.
+possible scene, physical Bluetooth, or a real activity lifecycle. Further live
+routes and real-watch checks remain necessary before relying on it for a ride.
+Evidence is in ignored `build/garmin-review/datafield/poc-*` directories.
