@@ -14,10 +14,12 @@ import java.util.Set;
 
 /** Bounded, Android-independent implementation of the approved fixed diagram. */
 public final class JunctionCompiler {
+    public enum RoadProfile { MOTORCYCLE, BICYCLE }
     public static final int MAX_PATHS=40,MAX_LAYER_PATHS=40,MAX_PATH_POINTS=48,MAX_POINTS=512;
     private static final double EARTH=6371000,RADIUS=75;
     private static final Set<String> NON_MOTOR=new HashSet<>(Arrays.asList("footway","cycleway","path","pedestrian","steps","bridleway","corridor","platform"));
     private static final Set<String> MOTOR_ACCESS=new HashSet<>(Arrays.asList("yes","permissive","designated","destination","delivery","customers","private","permit","agricultural","forestry","discouraged"));
+    private static final Set<String> NON_BICYCLE=new HashSet<>(Arrays.asList("motorway","motorway_link","footway","pedestrian","steps","bridleway","corridor","platform"));
 
     public static String nonMotorReason(Map<String,String> tags) {
         for (String key:new String[]{"motorcycle","motor_vehicle","vehicle","access"}) {
@@ -26,6 +28,19 @@ public final class JunctionCompiler {
             if (MOTOR_ACCESS.contains(value)) return null;
         }
         return NON_MOTOR.contains(tags.get("highway"))?"non-motor highway="+tags.get("highway"):null;
+    }
+
+    /** Display relevance only; OsmAnd's router remains authoritative for access. */
+    public static String nonBicycleReason(Map<String,String> tags) {
+        String bicycle=tags.get("bicycle");
+        if ("no".equals(bicycle) || "dismount".equals(bicycle) || "use_sidepath".equals(bicycle)) return "bicycle="+bicycle;
+        if (MOTOR_ACCESS.contains(bicycle)) return null;
+        for (String key:new String[]{"vehicle","access"}) {
+            String value=tags.get(key);
+            if ("no".equals(value)) return key+"="+value;
+            if (MOTOR_ACCESS.contains(value)) break;
+        }
+        return NON_BICYCLE.contains(tags.get("highway"))?"non-bicycle highway="+tags.get("highway"):null;
     }
 
     private static double delta(double degrees) { return Math.atan2(Math.sin(Math.toRadians(degrees)),Math.cos(Math.toRadians(degrees))); }
@@ -50,7 +65,12 @@ public final class JunctionCompiler {
     }
 
     public Scene compile(Route route,int maneuver,Context context) {
-        Scene scene=compileGeometry(route,maneuver,context);
+        return compile(route,maneuver,context,RoadProfile.MOTORCYCLE);
+    }
+
+    public Scene compile(Route route,int maneuver,Context context,RoadProfile profile) {
+        if (profile==null) throw new IllegalArgumentException("Road profile required");
+        Scene scene=compileGeometry(route,maneuver,context,profile);
         if (!scene.paths.isEmpty() && route.destinationIndex==route.indexBase+route.points.size()-1) {
             Decision decision=route.decisions.get(maneuver);
             int anchor=decision.routeIndex-route.indexBase;double remaining=0,exitDistance=0;
@@ -65,7 +85,7 @@ public final class JunctionCompiler {
         return scene;
     }
 
-    private Scene compileGeometry(Route route,int maneuver,Context context) {
+    private Scene compileGeometry(Route route,int maneuver,Context context,RoadProfile profile) {
         if (maneuver<0 || maneuver>=route.decisions.size()) throw new IllegalArgumentException("Decision index");
         Decision d=route.decisions.get(maneuver);int offset=d.routeIndex-route.indexBase;
         double[] cumulative=new double[route.points.size()];
@@ -134,7 +154,7 @@ public final class JunctionCompiler {
         List<Path> paths=new ArrayList<>();paths.add(chosen);int total=chosen.points.size();
         boolean layered=false;for (int level:simplifiedLevels) if (level!=0) layered=true;
         for (Road road:context.roads) {
-            if (nonMotorReason(road.tags)!=null) continue;
+            if ((profile==RoadProfile.BICYCLE?nonBicycleReason(road.tags):nonMotorReason(road.tags))!=null) continue;
             List<XY> raw=new ArrayList<>();Set<XY> critical=Collections.newSetFromMap(new java.util.IdentityHashMap<XY,Boolean>());
             for (Geo p:road.points) {
                 XY xy=frame.project(p);raw.add(xy);if (p.node!=null && shared.get(p.node)>1) critical.add(xy);
@@ -160,8 +180,9 @@ public final class JunctionCompiler {
         int pathLimit=layered?MAX_LAYER_PATHS:MAX_PATHS;
         if (paths.size()>pathLimit) compactContext(paths,pathLimit);
         if (paths.size()>pathLimit) return limited(d,anchors,chosen,radiusDm,"map context path capacity exceeded: "+paths.size());
-        return paths.size()==1?limited(d,anchors,chosen,radiusDm,"no local motor roads available"):
-                new Scene(layered?"layer_context":"map_context",layered?"motorcycle road context with level ordering":"motorcycle road context; intersections do not imply connectivity",d,radiusDm,anchors,paths);
+        String kind=profile==RoadProfile.BICYCLE?"bicycle":"motorcycle";
+        return paths.size()==1?limited(d,anchors,chosen,radiusDm,profile==RoadProfile.BICYCLE?"no local bicycle roads available":"no local motor roads available"):
+                new Scene(layered?"layer_context":"map_context",layered?kind+" road context with level ordering":kind+" road context; intersections do not imply connectivity",d,radiusDm,anchors,paths);
     }
 
     /** Join only degree-two, same-level CONTEXT endpoints. Every visible segment

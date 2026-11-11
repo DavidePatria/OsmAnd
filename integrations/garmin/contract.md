@@ -141,6 +141,24 @@ reasons are retained in generated provenance. See OSM's
 [access hierarchy](https://wiki.openstreetmap.org/wiki/Tag:motor_vehicle%3Dyes).
 Traffic-light and stop-sign landmarks were discussed, but explicitly deferred.
 
+When OsmAnd's active routing profile is bicycle or derived from bicycle, the
+display filter instead includes cycleways, paths, tracks and ordinary roads.
+Explicit `bicycle` permissions override more general `vehicle` and `access`
+restrictions; explicit bicycle prohibitions, dismount and use-sidepath values
+are omitted from the surrounding rideable-road context. Motorways and ordinary
+footways, pedestrian areas, steps and similar pedestrian-only classes are
+omitted by default unless bicycle access is explicitly permitted. Other profiles
+retain the existing motorcycle-oriented filter. This is a bounded display
+heuristic, not a legal-access or routing engine; the selected OsmAnd route is
+always retained. Changing the road profile invalidates cached and in-flight
+junction geometry even if the underlying route identity is unchanged.
+
+The bicycle filter and profile cache invalidation passed targeted JVM tests, and
+the development Android app built successfully. A short native Waydroid bicycle
+route was calculated and simulated, but a completed bicycle-context snapshot
+was not captured before arrival; live cycleway rendering and hardware validation
+remain open.
+
 ## API wrapper and wire envelope
 
 `AppInfoParams.navigationSnapshot` is optional and preserves constructors and old

@@ -11,6 +11,15 @@ public class JunctionSnapshotCacheTest {
         Route input=new Route(Arrays.asList(new Geo(-.001,0),new Geo(0,0),new Geo(.001,0)),Collections.singletonList(new Decision(1,"C","",0)));
         return new JunctionCompiler().compile(input,0,Context.unavailable());
     }
+    @Test public void switchingRoadProfileInvalidatesCachedAndPendingGeometry() {
+        JunctionSnapshotCache cache=new JunctionSnapshotCache();Object route=new Object();
+        cache.observe(route,1,State.ACTIVE,JunctionCompiler.RoadProfile.MOTORCYCLE);
+        assertTrue(cache.complete(cache.requestBuild(),scene()));
+        Ticket old=cache.requestBuild(2);
+        cache.observe(route,1,State.ACTIVE,JunctionCompiler.RoadProfile.BICYCLE);
+        assertNull(cache.cachedScene());assertFalse(cache.isCurrent(old));assertFalse(cache.complete(old,scene()));
+        assertNotNull(cache.requestBuild());
+    }
     @Test public void progressDoesNotRebuildFixedGeometry() {
         JunctionSnapshotCache cache=new JunctionSnapshotCache();Object route=new Object();cache.observe(route,5,State.ACTIVE);
         Ticket ticket=cache.requestBuild();assertNotNull(ticket);Scene geometry=scene();assertTrue(cache.complete(ticket,geometry));

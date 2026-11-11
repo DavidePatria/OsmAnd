@@ -18,19 +18,23 @@ public final class JunctionSnapshotCache {
     private int generation=0,sequence=0,junction=-1;
     private long version=0;
     private Object route;
+    private Object roadProfile;
     private State state=State.UNAVAILABLE;
     private final Map<Integer,Scene> scenes=new LinkedHashMap<>();
     private Ticket pending;
 
     /** Caller supplies a coherent routing observation. Identity is deliberately not equals(). */
     public synchronized void observe(Object routeIdentity,int nextJunction,State status) {
-        if (route!=routeIdentity || junction!=nextJunction || state!=status) {
+        observe(routeIdentity,nextJunction,status,null);
+    }
+    public synchronized void observe(Object routeIdentity,int nextJunction,State status,Object profile) {
+        if (route!=routeIdentity || roadProfile!=profile || junction!=nextJunction || state!=status) {
             // Forward advancement may promote prepared geometry. Any lifecycle
             // interruption, route replacement or backwards movement starts over.
-            if (route!=routeIdentity || state!=status || status!=State.ACTIVE || nextJunction<junction) {
+            if (route!=routeIdentity || roadProfile!=profile || state!=status || status!=State.ACTIVE || nextJunction<junction) {
                 scenes.clear();version++;
             }
-            route=routeIdentity;junction=nextJunction;state=status;
+            route=routeIdentity;roadProfile=profile;junction=nextJunction;state=status;
             scenes.keySet().removeIf(index -> index<junction || index>junction+1);
             if (++generation>1000000) { session=UUID.randomUUID().toString();generation=1;sequence=0; }
         }

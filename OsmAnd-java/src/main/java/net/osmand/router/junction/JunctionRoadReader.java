@@ -47,7 +47,7 @@ public final class JunctionRoadReader {
                 for (int i=0;i<road.getPointsLength();i++) identity.append(':').append(road.getPoint31XTile(i)).append(',').append(road.getPoint31YTile(i));
                 if (!identities.add(identity.toString())) return false;
                 Map<String,String> tags=new LinkedHashMap<>();tags.put("highway",road.getHighway());
-                for (String tag:new String[]{"layer","bridge","tunnel","access","vehicle","motor_vehicle","motorcycle","junction"}) tags.put(tag,road.getValue(tag));
+                for (String tag:new String[]{"layer","bridge","tunnel","access","vehicle","motor_vehicle","motorcycle","bicycle","junction"}) tags.put(tag,road.getValue(tag));
                 List<Geo> points=new ArrayList<>();
                 for (int i=0;i<road.getPointsLength();i++) {
                     int x=road.getPoint31XTile(i),y=road.getPoint31YTile(i);

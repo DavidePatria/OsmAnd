@@ -52,6 +52,28 @@ public class JunctionCompilerTest {
         Scene scene=compile(context(road("foot",tags("highway","footway"),geo(0,0),geo(30,30)),road("motor",tags("highway","service"),geo(0,0),geo(-30,30))));
         assertEquals(2,scene.paths.size());assertEquals("selected",scene.paths.get(0).role);
     }
+    @Test public void bicycleContextIncludesCyclewaysAndRespectsExplicitBicycleAccess() {
+        assertNull(JunctionCompiler.nonBicycleReason(tags("highway","cycleway")));
+        assertNull(JunctionCompiler.nonBicycleReason(tags("highway","path")));
+        assertNull(JunctionCompiler.nonBicycleReason(tags("highway","footway","bicycle","designated","access","no")));
+        assertNotNull(JunctionCompiler.nonBicycleReason(tags("highway","cycleway","bicycle","no","access","yes")));
+        assertNotNull(JunctionCompiler.nonBicycleReason(tags("highway","residential","vehicle","no")));
+        assertNotNull(JunctionCompiler.nonBicycleReason(tags("highway","motorway")));
+        assertNotNull(JunctionCompiler.nonBicycleReason(tags("highway","footway")));
+        Context ctx=context(
+            road("cycle",tags("highway","cycleway"),geo(-30,0),geo(0,0)),
+            road("path",tags("highway","path"),geo(0,0),geo(0,30)),
+            road("allowed",tags("highway","footway","bicycle","yes"),geo(0,0),geo(30,30)),
+            road("denied",tags("highway","cycleway","bicycle","no"),geo(0,0),geo(-30,30)),
+            road("motorway",tags("highway","motorway"),geo(0,0),geo(30,-30)));
+        Scene bike=new JunctionCompiler().compile(route(),0,ctx,JunctionCompiler.RoadProfile.BICYCLE);
+        assertEquals("map_context",bike.mode);assertEquals(4,bike.paths.size());
+        assertEquals("selected",bike.paths.get(0).role);
+        assertTrue(bike.reason.startsWith("bicycle road context"));
+        Scene motor=compile(ctx);
+        assertEquals("selected",motor.paths.get(0).role);
+        assertFalse(motor.reason.startsWith("bicycle road context"));
+    }
     @Test public void overflowIsExplicitAndBridgesRetainRoadContext() {
         List<Road> roads=new ArrayList<>();for (int i=0;i<41;i++) roads.add(road("r"+i,tags(),geo(0,0),geo(20,i)));
         Scene scene=compile(new Context(roads,true,false));assertEquals("route_only",scene.mode);assertTrue(scene.reason.contains("capacity"));

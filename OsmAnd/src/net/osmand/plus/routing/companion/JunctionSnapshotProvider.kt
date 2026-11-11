@@ -9,6 +9,7 @@ import net.osmand.PlatformUtil
 import net.osmand.plus.OsmandApplication
 import net.osmand.plus.routing.NextDirectionInfo
 import net.osmand.plus.routing.RouteCalculationResult
+import net.osmand.plus.settings.backend.ApplicationMode
 import net.osmand.router.junction.JunctionCompiler
 import net.osmand.router.junction.JunctionFixClock
 import net.osmand.router.junction.JunctionGeometry
@@ -37,6 +38,7 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
     }
     private var retryJunction = -1
     private var retryRoute: RouteCalculationResult? = null
+    private var retryProfile: JunctionCompiler.RoadProfile? = null
     private var retryAfter = 0L
     private val gson = Gson()
 
@@ -83,6 +85,8 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
             val now = SystemClock.elapsedRealtime()
             capturedAt = now
             val route = helper.route
+            val roadProfile = if (helper.appMode.isDerivedRoutingFrom(ApplicationMode.BICYCLE))
+                JunctionCompiler.RoadProfile.BICYCLE else JunctionCompiler.RoadProfile.MOTORCYCLE
             val info = helper.getNextRouteDirectionInfo(NextDirectionInfo(), false)
             val direction = info?.directionInfo
             val index = direction?.let { selected -> route.immutableAllDirections.indexOfFirst { it === selected } } ?: -1
@@ -96,11 +100,12 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                 index < 0 || direction == null -> State.UNAVAILABLE
                 else -> State.ACTIVE
             }
-            cache.observe(route, index, state)
-            if (state != State.ACTIVE || retryRoute !== route) {
+            cache.observe(route, index, state, roadProfile)
+            if (state != State.ACTIVE || retryRoute !== route || retryProfile != roadProfile) {
                 retryJunction = -1
                 retryAfter = 0L
                 retryRoute = null
+                retryProfile = null
             }
             val fix = helper.lastFixedLocation
             val fixAge = if (fix == null) 60_000 else fixClock.age(fix.time, System.currentTimeMillis(), now)
@@ -135,7 +140,7 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                         try {
                             val maps = app.resourceManager.routingMapFiles.map { it.file }.distinct()
                             val context = JunctionRoadReader().read(maps, input.points[input.decisions[0].routeIndex-input.indexBase]) { !cache.isCurrent(ticket) }
-                            if (cache.isCurrent(ticket)) scene = JunctionCompiler().compile(input, 0, context)
+                            if (cache.isCurrent(ticket)) scene = JunctionCompiler().compile(input, 0, context, roadProfile)
                         } catch (error: Exception) {
                             LOG.error("Junction geometry unavailable", error)
                         }
@@ -150,6 +155,7 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                             if (cache.complete(ticket, result) && result == null) {
                                 retryJunction = ticket.junction
                                 retryRoute = route
+                                retryProfile = roadProfile
                                 retryAfter = SystemClock.elapsedRealtime() + 5000
                             }
                         }
@@ -158,6 +164,7 @@ class JunctionSnapshotProvider(private val app: OsmandApplication) {
                     cache.complete(ticket, null)
                     retryJunction = ticket.junction
                     retryRoute = route
+                    retryProfile = roadProfile
                     retryAfter = now + 5000
                     LOG.error("Junction route input unavailable", error)
                 }
