@@ -1,0 +1,3 @@
+project.manifest = fr265-manifest.xml
+base.resourcePath = resources
+base.sourcePath = source;navigation

@@ -8,6 +8,12 @@ function testScene() as Dictionary {
         "anchors"=>[{"id"=>"a","point"=>[0,0],"routeIndex"=>1}],
         "paths"=>[{"id"=>"route","role"=>"selected","points"=>[[0,-100],[0,0],[100,0]],"anchorRefs"=>[["a",1]]}]};
 }
+(:test) function junctionLabelsFitForerunner265Screen(logger as Test.Logger) as Boolean {
+    var left=JunctionLabelLayout.chooseAway(208,208,42,71,416,416,82,344,[],-1,0);
+    if (left==null || !JunctionLabelLayout.fits(left[0],left[1],left[2],left[3],416,416,82,344,[])) {return false;}
+    var right=JunctionLabelLayout.chooseAway(224,208,42,71,416,416,82,344,[left],1,0);
+    return right!=null && JunctionLabelLayout.fits(right[0],right[1],right[2],right[3],416,416,82,344,[left]) && left[0]+left[2]<208 && right[0]>224;
+}
 (:test) function junctionLabelsAvoidCollisionsAndRoundEdges(logger as Test.Logger) as Boolean {
     var placed=[];
     var positions=[[227,227],[231,230],[225,232],[235,225]];

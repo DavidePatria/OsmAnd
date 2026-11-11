@@ -764,7 +764,7 @@ def main(argv):
     p_doctor.add_argument("--out", default="build/garmin-review/doctor", help="output directory (repo-relative)")
     p_doctor.add_argument("--config", help="local config JSON (see dev-config.example.json)")
     p_build = sub.add_parser("build", help="build an implementation target")
-    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "datafield", "moving-map", "all"))
+    p_build.add_argument("--target", required=True, choices=("osmand", "bridge", "watch", "navigation-watch", "datafield", "fr265", "fr265-datafield", "moving-map", "all"))
     p_build.add_argument("--out", default="build/garmin-review/build")
     p_build.add_argument("--config", help="private local config JSON")
     p_run = sub.add_parser("run", help="run an implementation scenario")
@@ -781,7 +781,7 @@ def main(argv):
     p_run.add_argument("--maneuver", type=int, help="original maneuver index in the supplied capture")
     p_run.add_argument("--hold", action="store_true", help="hold the first replay scene; Start/Select toggles playback")
     p_check = sub.add_parser("check", help="run actual scene/protocol or watch tests")
-    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "datafield", "geometry", "api", "bridge", "all"))
+    p_check.add_argument("--suite", required=True, choices=("protocol", "watch", "datafield", "fr265", "fr265-datafield", "geometry", "api", "bridge", "all"))
     p_check.add_argument("--out", default="build/garmin-review/check")
     p_check.add_argument("--config")
     for name in ("iterate",):
@@ -805,22 +805,30 @@ def main(argv):
         if not out_dir.is_absolute():
             out_dir = REPO_ROOT / out_dir
         return doctor(cfg, out_dir)
-    if args.command == "check" and args.suite in ("protocol", "watch", "datafield"):
+    if args.command == "check" and args.suite in ("protocol", "watch", "datafield", "fr265", "fr265-datafield"):
         from replay import check_protocol, check_watch
         out_dir=Path(args.out)
         if not out_dir.is_absolute(): out_dir=REPO_ROOT/out_dir
         if args.suite == "protocol": return check_protocol(sys.modules[__name__],out_dir)
-        return check_watch(sys.modules[__name__],cfg,out_dir,field=args.suite == "datafield")
+        check_cfg=cfg.copy()
+        if args.suite in ("fr265", "fr265-datafield"):
+            check_cfg["garmin_device"]="fr265"
+            check_cfg["garmin_device_dir"]=str(Path.home()/".Garmin/ConnectIQ/Devices/fr265")
+        return check_watch(sys.modules[__name__],check_cfg,out_dir,field=args.suite in ("datafield", "fr265-datafield"))
     if args.command == "check" and args.suite in ("geometry", "api", "bridge"):
         from host_checks import check
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
         return check(sys.modules[__name__],cfg,out_dir,args.suite)
-    if args.command == "build" and args.target in ("navigation-watch", "datafield", "moving-map"):
+    if args.command == "build" and args.target in ("navigation-watch", "datafield", "fr265", "fr265-datafield", "moving-map"):
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir
-        jungle = {"datafield":"datafield.jungle", "moving-map":"moving-map/monkey.jungle"}.get(args.target,"navigation.jungle")
-        return build_watch(cfg,out_dir,jungle=TOOL_DIR/"watch"/jungle)
+        jungle = {"datafield":"datafield.jungle", "fr265":"fr265.jungle", "fr265-datafield":"fr265-datafield.jungle", "moving-map":"moving-map/monkey.jungle"}.get(args.target,"navigation.jungle")
+        build_cfg = cfg.copy()
+        if args.target in ("fr265", "fr265-datafield"):
+            build_cfg["garmin_device"] = "fr265"
+            build_cfg["garmin_device_dir"] = str(Path.home()/".Garmin/ConnectIQ/Devices/fr265")
+        return build_watch(build_cfg,out_dir,jungle=TOOL_DIR/"watch"/jungle)
     if args.command == "run" and args.mode == "navigation-smoke":
         out_dir=Path(args.out)
         if not out_dir.is_absolute():out_dir=REPO_ROOT/out_dir

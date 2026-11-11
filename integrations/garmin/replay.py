@@ -223,7 +223,8 @@ def check_watch(dev,cfg,out_dir,field=False):
     sources = ([watch/'datafield'] + [watch/'source'/name for name in
                ('NavigationState.mc','CompactWire.mc','NavigationRequestGate.mc','JunctionAlert.mc','JunctionRenderer.mc')] + [watch/'tests']
                if field else [watch/'source',watch/'live',watch/'tests'])
-    manifest = 'datafield-manifest.xml' if field else 'manifest.xml'
+    device=cfg.get('garmin_device') or 'fr970'
+    manifest = ('fr265-datafield-manifest.xml' if field else 'fr265-manifest.xml') if device=='fr265' else ('datafield-manifest.xml' if field else 'manifest.xml')
     jungle.write_text('project.manifest = '+json.dumps(str(watch/manifest))+'\nbase.resourcePath = '+json.dumps(str(watch/'resources'))+
                       '\nbase.sourcePath = '+ ';'.join(json.dumps(str(p)) for p in sources)+'\n')
     report={'suite':'actual-monkey-c-field-state-tests' if field else 'actual-monkey-c-state-tests','status':'fail'};client=None
@@ -231,7 +232,7 @@ def check_watch(dev,cfg,out_dir,field=False):
         if dev.build_watch(cfg,out_dir/'build',jungle=jungle,unit_tests=True):raise RuntimeError('unit-test compilation failed')
         build=json.loads((out_dir/'build/build.json').read_text())
         sdk,env,simulator=ensure_simulator(cfg,out_dir);report.update(simulator)
-        command=[str(sdk/'bin/monkeydo'),build['artifact'],'fr970','-t']
+        command=[str(sdk/'bin/monkeydo'),build['artifact'],device,'-t']
         with (out_dir/'tests.log').open('wb') as log:
             client=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True)
         code=client.wait(timeout=60)
