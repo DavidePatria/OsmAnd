@@ -8,6 +8,20 @@ function testScene() as Dictionary {
         "anchors"=>[{"id"=>"a","point"=>[0,0],"routeIndex"=>1}],
         "paths"=>[{"id"=>"route","role"=>"selected","points"=>[[0,-100],[0,0],[100,0]],"anchorRefs"=>[["a",1]]}]};
 }
+(:test) function junctionLabelsAvoidCollisionsAndRoundEdges(logger as Test.Logger) as Boolean {
+    var placed=[];
+    var positions=[[227,227],[231,230],[225,232],[235,225]];
+    for (var i=0;i<positions.size();i+=1) {
+        var p=positions[i],box=JunctionLabelLayout.choose(p[0],p[1],42,71,454,454,89,379,placed);
+        if (box==null || !JunctionLabelLayout.fits(box[0],box[1],box[2],box[3],454,454,89,379,placed)) {return false;}
+        placed.add(box);
+    }
+    var edge=JunctionLabelLayout.choose(425,220,42,71,454,454,89,379,[]);
+    if (edge==null || !JunctionLabelLayout.fits(edge[0],edge[1],edge[2],edge[3],454,454,89,379,[])) {return false;}
+    var left=JunctionLabelLayout.chooseAway(227,227,42,71,454,454,89,379,[],-1,0);
+    var right=JunctionLabelLayout.chooseAway(243,227,42,71,454,454,89,379,[left],1,0);
+    return left!=null && right!=null && left[0]+left[2]<227 && right[0]>243;
+}
 (:test)
 function junctionAlertFiresOncePerDisplayedNativeDecision(logger as Test.Logger) as Boolean {
     var alert=new JunctionAlert(),scene=testScene();

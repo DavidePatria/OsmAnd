@@ -7,6 +7,13 @@ for the road diagram. On smaller multi-field layouts it shows the distance or a
 status instead, because the diagram would not be legible. The watch vibrates
 when a new junction is displayed, as in the standalone app.
 
+Both watch versions show direction chevrons on the yellow route. Junction
+numbers use the device font closest to twice their former height, with
+collision-aware placement and thin connectors to their markers. Where the
+larger labels cannot fit, the renderer selects a smaller available font. On
+2026-11-10 the user approved the placement in a recorded simulator preview;
+physical readability and other crowded layouts remain to be checked.
+
 ## Build
 
 Use the local SDK and signing configuration described in the companion README:
