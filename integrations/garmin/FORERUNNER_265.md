@@ -26,7 +26,10 @@ On 2026-11-11 both 265 builds compiled and each simulator unit suite passed
 34 tests. The standalone app also issued a 416×416 drawing callback in a
 separate startup check. The data-field startup check timed out while the Linux
 simulator displayed a black GTK/FreeType error dialog; that is not a field
-startup pass. The checks do not establish visual readability, live Garmin
-Connect delivery, vibration, real activity behavior, or physical-watch stability.
+startup pass. Both builds were subsequently transferred to a Forerunner 265
+over MTP and read back with matching hashes. Processing after disconnection
+and opening the apps have not been verified. The checks do not establish visual
+readability, live Garmin Connect delivery, vibration, real activity behavior, or
+physical-watch stability.
 Test those on the actual 265 before relying on it during a ride. Earlier data
 field unit tests run under a test heap and are not a physical memory measurement.

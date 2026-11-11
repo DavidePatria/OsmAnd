@@ -1,5 +1,25 @@
 # Start here: implement the Garmin junction companion
 
+## Latest — Forerunner 265 transfer (2026-11-11)
+
+At the user's request, the prepared `fr265` standalone app and activity data
+field were copied to the connected Forerunner 265 as `JUNCAPP.PRG` and
+`JUNCFILD.PRG`. Both were read back over MTP and matched their source SHA-256
+hashes. Transfer is verified; installation after USB disconnect, launch, display,
+phone communication and physical behavior remain unverified. See
+`integrations/garmin/FORERUNNER_265.md` for the build requirements.
+
+## Latest — Forerunner 265 builds (2026-11-11)
+
+The separate `fr265` standalone and activity-field builds use the existing
+identities and Connect IQ API 5.2. Both compiled and both simulator unit suites
+passed 34 tests. The standalone app drew a 416×416 startup frame; the separate
+field startup timed out amid a black simulator GTK dialog. Both were later
+transferred as recorded above; neither has been visually reviewed on a 265.
+The final artifacts and private build evidence are under
+`build/garmin-review/fr265/`; build commands and limitations are in
+`integrations/garmin/FORERUNNER_265.md`.
+
 ## Current — diagnostic recording and physical desk test (2026-11-08)
 
 The opt-in bridge recorder and export UI are built; see the ride diagnostics

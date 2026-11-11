@@ -1,3 +1,14 @@
+## Forerunner 265 physical transfer (2026-11-11)
+
+The connected device identified itself through desktop MTP as Forerunner 265.
+The prepared `fr265/release-watch/Junction.prg` and
+`fr265/release-datafield/Junction.prg` were copied to `GARMIN/Apps` as
+`JUNCAPP.PRG` and `JUNCFILD.PRG`, respectively. Both were copied back and their
+SHA-256 hashes matched the source files. Private readback artifacts are under
+`build/garmin-review/fr265/physical-transfer/`. No launch, installation after
+USB disconnect, visual review, communication or physical behavior was tested.
+The field's earlier separate simulator startup timed out; its unit suite passed.
+
 # Verification record — junction companion
 
 Reviewed/continued on 2026-11-05 from `/tmp/opencode/handoff-junction-companion.md`. This record distinguishes observed behavior, inference and unexecuted checks. The detailed task acceptance criteria remain in [todo.md](todo.md).

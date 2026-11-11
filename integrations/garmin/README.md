@@ -2,6 +2,8 @@
 
 For the fixed five-route live Waydroid + Garmin endurance suite, preparation,
 launch commands and result interpretation, see [SIMULATOR_TESTS.md](SIMULATOR_TESTS.md).
+For the Forerunner 265 app and activity-field builds, see
+[FORERUNNER_265.md](FORERUNNER_265.md).
 
 Authoritative sequence: [plan](../../tasks/plan.md), [status](../../tasks/todo.md), [verification](../../tasks/verification.md). Geometry, optional export and bridge/watch delivery code now build and pass host/simulator checks. Actual phone progress, permissions, Binder lifecycle and physical Garmin/Bluetooth integration are not verified.
 
@@ -79,9 +81,10 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s integrations/garmin/te
 
 The first simulator start may require Linux desktop/network access unavailable inside a restricted runner. On this host, sandboxed ADB also cannot open its local server socket. Run the same commands in the authorized host environment; do not substitute a mocked success.
 
-Implemented checks: `protocol|geometry|api|bridge|watch`; implemented watch builds:
-`watch` (legacy echo), `navigation-watch` (real input), and `datafield` (activity
-data screen). See [DATA_FIELD.md](DATA_FIELD.md) for its setup and verification
+Implemented checks include `protocol|geometry|api|bridge|watch|datafield` and
+the `fr265` and `fr265-datafield` simulator suites. Watch builds include `watch`
+(legacy echo), `navigation-watch` (real input), `datafield`, `fr265` and
+`fr265-datafield`. See [DATA_FIELD.md](DATA_FIELD.md) for its setup and verification
 limits. The independent Garmin map experiment is documented in
 [MOVING_MAP.md](MOVING_MAP.md). `run --mode replay` and
 `navigation-smoke` work. `all`, `desk` and `iterate` orchestration remain explicitly
