@@ -1,0 +1,31 @@
+name: Check Junction iOS protocol on Linux
+
+on:
+  push:
+    branches: [codex/ios-garmin]
+    paths:
+      - '.github/workflows/check-junction-ios-protocol.yml'
+      - 'integrations/garmin/ios/bridge/Sources/Scene.swift'
+      - 'integrations/garmin/ios/bridge/Sources/DeliveryGate.swift'
+      - 'integrations/garmin/ios/bridge/Tests/ProtocolTests.swift'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and exercise the portable Swift protocol
+        shell: bash
+        run: |
+          swiftc --version
+          swiftc -swift-version 5 -parse-as-library \
+            integrations/garmin/ios/bridge/Sources/Scene.swift \
+            integrations/garmin/ios/bridge/Sources/DeliveryGate.swift \
+            integrations/garmin/ios/bridge/Tests/ProtocolTests.swift \
+            -o "$RUNNER_TEMP/junction-protocol-tests"
+          "$RUNNER_TEMP/junction-protocol-tests"
