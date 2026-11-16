@@ -7,7 +7,9 @@ on:
       - '.github/workflows/check-junction-ios-protocol.yml'
       - 'integrations/garmin/ios/bridge/Sources/Scene.swift'
       - 'integrations/garmin/ios/bridge/Sources/DeliveryGate.swift'
+      - 'integrations/garmin/ios/bridge/Sources/CompactWire.swift'
       - 'integrations/garmin/ios/bridge/Tests/ProtocolTests.swift'
+      - 'integrations/garmin/fixtures/wire/compact.json'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +28,7 @@ jobs:
           swiftc -swift-version 5 -parse-as-library \
             integrations/garmin/ios/bridge/Sources/Scene.swift \
             integrations/garmin/ios/bridge/Sources/DeliveryGate.swift \
+            integrations/garmin/ios/bridge/Sources/CompactWire.swift \
             integrations/garmin/ios/bridge/Tests/ProtocolTests.swift \
             -o "$RUNNER_TEMP/junction-protocol-tests"
           "$RUNNER_TEMP/junction-protocol-tests"

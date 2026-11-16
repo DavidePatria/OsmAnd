@@ -93,8 +93,9 @@ final class BridgeModel: ObservableObject {
             if case .success(let data) = result,
                let snapshot = try? SourceSnapshot.decode(data, nowMs: Int64(ProcessInfo.processInfo.systemUptime * 1000)),
                let normalized = try? snapshot.dictionary() { scene = normalized }
-            guard let response = self.gate.response(ticket, scene: scene, now: ProcessInfo.processInfo.systemUptime) else { return }
-            self.link.send(response) { [weak self] success in
+            guard let response = self.gate.response(ticket, scene: scene, now: ProcessInfo.processInfo.systemUptime),
+                  let packet = try? CompactWire.encode(response) else { self.gate.finish(ticket); return }
+            self.link.send(packet) { [weak self] success in
                 guard let self else { return }
                 if self.gate.current(ticket, now: ProcessInfo.processInfo.systemUptime) {
                     self.status = success ? (scene == nil ? "source_unavailable" : "sdk_send_complete") : "delivery_failed"

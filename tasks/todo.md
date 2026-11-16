@@ -11,6 +11,10 @@
   Android baseline equality. This is not live or native iOS proof.
 - [x] Compile the actual Garmin iOS SDK integration: Intel macOS/Xcode 26.3,
   Release ARM64 iPhone target, job 133250653269 in run 43853166772.
+- [x] Add iOS-compatible lossless compact-string transport; updated actual Garmin
+  field and standalone suites each pass 35 tests. Physical delivery remains open.
+- [ ] Pass the Swift encoder's existing cross-language golden vectors and compile
+  the bridge's final compact-string revision; previous dictionary revision compiled.
 - [ ] Finish native OsmAnd iPhone compilation on Actions and inspect actual artifacts.
 - [ ] Execute the prepared signing workflow with valid Apple-issued certificate,
   private key and two device profiles. Currently blocked on those external assets;

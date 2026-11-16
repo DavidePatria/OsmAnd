@@ -99,6 +99,23 @@ def build(workspace, destination):
     logs.mkdir(exist_ok=True)
     env = dict(os.environ, LANG="en_US.UTF-8", DOWNLOAD_PREBUILT_QT_FILES="true")
     env["JAVA_HOME"] = output(["/usr/libexec/java_home", "-v", "17"])
+    framework_target = "IosArm64" if destination == "device" else "IosSimulatorArm64"
+    run([workspace / "android/gradlew", "--no-daemon", "--max-workers=2",
+         f":OsmAnd-shared:linkReleaseFramework{framework_target}"],
+        cwd=workspace / "android", env=env, log=logs / "shared-framework.log")
+    header = workspace / f"android/OsmAnd-shared/build/bin/{framework_target[0].lower() + framework_target[1:]}/releaseFramework/OsmAndShared.framework/Headers/OsmAndShared.h"
+    if not header.is_file() or not all(name in header.read_text() for name in
+                                     ("OASJunctionPort", "compileInputJson:", "layerRoad:")):
+        raise ValueError("The built Apple framework does not export the native Junction boundary")
+    # Upstream explicitly requires this absolute build prefix for its prebuilt Qt.
+    # Alias this disposable runner workspace; never replace an existing checkout.
+    qt_prefix = Path("/Users/runner/work/OsmAnd-iOS/OsmAnd-iOS")
+    if qt_prefix.exists() or qt_prefix.is_symlink():
+        if qt_prefix.resolve() != workspace:
+            raise ValueError("Prebuilt Qt prefix is occupied; existing checkout left untouched")
+    else:
+        qt_prefix.parent.mkdir(parents=True, exist_ok=True)
+        qt_prefix.symlink_to(workspace, target_is_directory=True)
     run(["bash", "-e", workspace / "ios/prepare.sh"], cwd=workspace,
         env=env, log=logs / "prepare.log")
     inputs = {}
@@ -141,7 +158,7 @@ def build(workspace, destination):
              "-destination", target, "-derivedDataPath", workspace / "bridge-derived",
              "CODE_SIGNING_ALLOWED=NO", "ARCHS=arm64", "build"], env=env,
             log=logs / "bridge-build.log")
-        apps["Junction-Bridge"] = workspace / f"bridge-derived/Build/Products/Release-{sdk}/Junction Bridge.app"
+        apps["Junction-Bridge"] = workspace / f"bridge-derived/Build/Products/Release-{sdk}/JunctionBridge.app"
     records = {"platform": destination, "signing": "unsigned", "sources": LOCK["sources"],
                "androidCommit": output(["git", "rev-parse", "HEAD"], workspace / "android"),
                "xcode": output(["xcodebuild", "-version"]), "artifacts": {}}

@@ -54,6 +54,13 @@ struct ProtocolTests {
         let pending = gate.begin(request("c", 1), now: 6)!
         gate.connectionChanged()
         check(!gate.current(pending, now: 6.1))
+        let vectors = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: "integrations/garmin/fixtures/wire/compact.json"))) as! [[String: Any]]
+        for vector in vectors {
+            let packet = try CompactWire.encode(vector["reply"] as! [String: Any])
+            check(packet.hasPrefix("JC2:") && packet.utf8.count <= 10928)
+            let bytes = Data(base64Encoded: String(packet.dropFirst(4)))!
+            check(bytes.map { String(format: "%02x", $0) }.joined() == vector["hex"] as! String)
+        }
         print("Junction iOS protocol assertions passed: \(assertions)")
     }
 }

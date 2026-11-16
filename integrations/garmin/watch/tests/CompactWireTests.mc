@@ -43,3 +43,17 @@ function compactGolden1() as ByteArray {return compactBytes("4a430200000c636f6d7
     if (gate.acceptCompactOwned(bytes.slice(0,25),100,state) || state.scene()!=null) {return false;}
     return gate.acceptCompactOwned(bytes,200,state) && state.scene()!=null;
 }
+
+(:test) function compactIosStringIsLossless(logger as Test.Logger) as Boolean {
+    var originals=[compactGolden0(),compactGolden1()];
+    for(var i=0;i<originals.size();i+=1) {
+        var encoded=StringUtil.convertEncodedString(originals[i],{
+            :fromRepresentation=>StringUtil.REPRESENTATION_BYTE_ARRAY,
+            :toRepresentation=>StringUtil.REPRESENTATION_STRING_BASE64});
+        var packet=CompactWire.bytes("JC2:"+encoded);
+        if(packet==null || !compactEqual(CompactWire.decode(packet),CompactWire.decode(originals[i]))) {return false;}
+        var gate=new NavigationRequestGate(),state=new NavigationState();gate.reset("compact-test");gate.begin(0);
+        if(!gate.acceptCompactOwned(packet,100,state) || state.scene()==null) {return false;}
+    }
+    return CompactWire.bytes("JC2:!!!!")==null && CompactWire.bytes("other")==null;
+}

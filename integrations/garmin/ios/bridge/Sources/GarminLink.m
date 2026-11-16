@@ -120,7 +120,7 @@
     });
 }
 
-- (void)send:(NSDictionary *)message completion:(void (^)(BOOL))completion
+- (void)send:(NSString *)message completion:(void (^)(BOOL))completion
 {
     if (!_ready || !_app) { completion(NO); return; }
     [_sdk sendMessage:message toApp:_app progress:nil completion:^(IQSendMessageResult result) {

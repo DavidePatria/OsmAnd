@@ -116,3 +116,20 @@ roads/anchors/destination field. The watch draws a vector checkered flag and ARR
 An old GPS fix is irrelevant to a completed journey; arrival still requires fresh
 source heartbeat/transport (unchanged5s/3s bounds), and cannot survive disconnect.
 This is an arrival result, not a watch-side guess based on zero junction distance.
+# iOS compact transport addition (2026-11-16)
+
+The iOS Garmin SDK documents NSString, NSNumber, NSNull, NSArray and NSDictionary
+message values, without a documented NSData/ByteArray send type. The iOS bridge
+therefore sends `JC2:` plus standard Base64 of the unchanged version-2 compact
+packet. The wrapper is bounded to 10,928 ASCII characters and the decoded packet
+to 8,192 bytes. The watch normalizes this wrapper before its existing compact
+header/scene validation. Android ByteArray and legacy dictionary handling remain
+available where previously supported; the activity field still requires compact
+delivery. No freshness deadline, geometry budget or coordinate is changed.
+
+This needs the updated watch source on this branch. The Swift encoder is checked
+against the existing independent `fixtures/wire/compact.json` vectors, including
+Unicode, layers and destination. Watch unit tests exercise string normalization
+and the field's owned compact receive gate. Base64 increases size by about one
+third; simulator tests do not establish physical BLE throughput or maximum-scene
+stability.

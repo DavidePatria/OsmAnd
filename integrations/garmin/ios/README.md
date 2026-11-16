@@ -27,10 +27,15 @@ Bluetooth delivery and watch drawing are separate verification gates.
   wake a suspended OsmAnd process. Navigation/background and locked-screen
   behavior require physical iPhone testing.
 
-The Garmin SDK is pinned in `bridge/project.yml`. It sends supported dictionary
-messages; the Android bridge's compact ByteArray encoding is not assumed to be
-supported by the iOS SDK. Maximum-size dictionary delivery, data-field heap use
-and real BLE throughput remain unverified.
+The Garmin SDK is pinned in `bridge/project.yml`. It sends a supported string:
+`JC2:` followed by Base64 of the existing lossless compact packet. The watch
+normalizes this to bytes and uses the same request, freshness and scene gates.
+The activity field releases the old frame only after checking the compact
+header, preserving its existing memory-saving receive path. Android ByteArray
+packets remain supported. **The iOS bridge requires the updated watch app or
+field from this branch**; older activity fields ignore the string wrapper.
+Base64 adds about one third to packet size. Maximum-size string delivery,
+watch heap use under repeated updates and real BLE throughput remain unverified.
 
 ## Hosted build from Linux
 
@@ -58,6 +63,8 @@ mismatched checkouts. `ci.py prepare` adapts only that isolated workspace:
 - removal of OsmAnd's signing identities and privileged upstream entitlements;
 - explicit source/project registration and localized settings entry;
 - repair of the pinned OsmAnd-build CMake condition's stray `OR` token;
+- a guarded runner-only alias for the absolute workspace prefix embedded in
+  upstream's prebuilt Qt (an occupied directory is never overwritten);
 - HTTPS resource downloads and fail-fast native preparation.
 
 Upstream prebuilt Qt/ANGLE/resource URLs are mutable. Source revisions are pinned;

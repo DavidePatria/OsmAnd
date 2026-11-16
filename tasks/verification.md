@@ -1439,3 +1439,35 @@ this is not a complete wire replay or physical Bluetooth test. The Garmin simula
 itself exited during startup, before playback, so the replay is a failure with no
 verdict about the captured diagrams. Evidence is in ignored
 `diagnostics/physical-watch-exit/simulator-replay/`; no automatic retry was made.
+
+## iOS hosted failure and compact transport follow-up (2026-11-16)
+
+Run 43853766730 failed in two distinct places. The bridge compiled successfully,
+then its packaging command used `Junction Bridge.app` instead of the actual
+`JunctionBridge.app`. Both packaging paths are corrected. Native generation got
+past the CMake condition repair, then upstream Qt makefiles referenced the absolute
+prefix `/Users/runner/work/OsmAnd-iOS/OsmAnd-iOS` from their original build.
+Upstream prepare explicitly documents requiring that prefix. The next build adds
+a guarded alias from that path to the disposable runner workspace; it refuses an
+occupied path and never changes local sibling checkouts. This repair is prepared,
+not yet a successful native compile. Original failed logs are preserved in private
+`ios-ci/run-43853766730-failed.log`.
+
+Review also established that the existing activity field ignores non-ByteArray
+messages. The initial iOS dictionary sender therefore could not serve that field.
+It is replaced by an NSString-compatible Base64 wrapper around the unchanged JC2
+compact bytes, with a shared watch normalizer and the existing owned receive gate.
+The Swift encoder uses the existing independent golden vectors; their next hosted
+run remains pending. The updated watch is required; no physical transfer occurred.
+Physical throughput and maximum-context repeated updates remain unverified.
+
+The first local field check failed before compilation because the sandbox could
+not access the desktop AWT backend. With desktop access, compilation passed but
+one new malformed-Base64 assertion failed (34/35). Rejecting empty decoded buffers
+corrected it; `watch-base64-field-03` then passed all 35 tests, zero errors. This
+is an actual Garmin SDK/simulator unit suite, not a live OsmAnd or pixel review.
+Standalone regression also passed all 35 tests in `watch-base64-standalone`.
+The next hosted build compiles the shared Apple framework and checks actual
+Objective-C class/selectors before expensive Qt/native preparation. This gate is
+prepared and has not yet run. All evidence remains under private
+`build/garmin-review/ios-ci/`.

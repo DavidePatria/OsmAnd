@@ -3,6 +3,18 @@ import Toybox.StringUtil;
 
 //! Lossless SDK transport adapter; decoded replies still pass the original gates.
 module CompactWire {
+    //! NSString is supported by the iOS SDK; keep the same bounded JC2 bytes.
+    function bytes(value as Object?) as ByteArray? {
+        if (value instanceof ByteArray) { return value.size()<=8192 ? value : null; }
+        if (!(value instanceof String) || value.length()<8 || value.length()>10928 ||
+            !value.substring(0,4).equals("JC2:")) { return null; }
+        try {
+            var decoded=StringUtil.convertEncodedString(value.substring(4,value.length()),{
+                :fromRepresentation=>StringUtil.REPRESENTATION_STRING_BASE64,
+                :toRepresentation=>StringUtil.REPRESENTATION_BYTE_ARRAY});
+            return decoded instanceof ByteArray && decoded.size()>=4 && decoded.size()<=8192 ? decoded : null;
+        } catch(error) { return null; }
+    }
     function words() as Array<String> {
         var values=["active","idle","recalculating","unavailable","map_context","layer_context","routing_branches","route_only","selected","branch","context","motorcycle road context; intersections do not imply connectivity","motorcycle road context with level ordering"];
         for(var i=0;i<4;i+=1) {values.add("j"+i);}
@@ -11,9 +23,9 @@ module CompactWire {
         return values;
     }
     function decode(value as Object?) as Object? {
-        if (!(value instanceof ByteArray)) {return value;}
-        if (value.size()>8192) {return null;}
-        try {return new CompactReader(value).reply();} catch(error) {return null;}
+        if (!(value instanceof ByteArray) && !(value instanceof String)) {return value;}
+        var packet=bytes(value);if(packet==null) {return null;}
+        try {return new CompactReader(packet).reply();} catch(error) {return null;}
     }
     //! Read only the bounded transport header before releasing the previous
     //! frame in a memory-constrained data field. Full decode still follows.

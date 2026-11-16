@@ -27,6 +27,15 @@ including the real Garmin SDK and iPhone ARM64 target. The source and UI compile
 this is not phone/watch runtime proof. Main OsmAnd still had no Apple Silicon
 runner, so the next revision also uses `macos-15-intel` for the native build.
 
+Latest follow-up: run 43853766730 compiled the bridge but failed packaging on a
+wrong app basename, now corrected. Native generation exposed the absolute
+workspace prefix in upstream prebuilt Qt; a guarded runner alias is prepared.
+The iOS activity field needs compact delivery, so the bridge now wraps the
+existing JC2 bytes in an SDK-supported Base64 string. Updated field and standalone
+watch suites both pass 35 tests. This requires updated watch software, with no
+physical transfer performed. The next hosted run also checks the shared Apple
+framework and Objective-C exports before building Qt/native OsmAnd.
+
 ## Latest — Forerunner 265 transfer (2026-11-11)
 
 At the user's request, the prepared `fr265` standalone app and activity data
