@@ -71,8 +71,8 @@ def install(ios):
     app = ios / "Sources/AppHost/OAAppDelegate.mm"
     app_text = app.read_text()
     app_text = '#import "OAJunctionCompanion.h"\n' + app_text
-    app_text = replace_once(app_text, 'LogStartup(@"didFinishLaunchingWithOptions");',
-        'LogStartup(@"didFinishLaunchingWithOptions");\n    dispatch_async(dispatch_get_main_queue(), ^{ [[OAJunctionCompanion shared] start]; });')
+    app_text = replace_once(app_text, '_appInitDone = YES;',
+        '_appInitDone = YES;\n            dispatch_async(dispatch_get_main_queue(), ^{ [[OAJunctionCompanion shared] start]; });')
     settings = ios / "Sources/Controllers/Settings/OAMainSettingsViewController.m"
     settings_text = '#import "OAJunctionCompanion.h"\n' + settings.read_text()
     marker = '    [data addObject:@[\n        @{\n            @"name" : @"osmand_settings",'

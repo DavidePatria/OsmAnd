@@ -30,16 +30,22 @@ internal object JunctionGeometry {
     private val excludedBicycle = setOf("motorway", "motorway_link", "footway", "pedestrian", "steps", "bridleway", "corridor", "platform")
 
     fun relevant(tags: Map<String, String?>, bicycle: Boolean): Boolean {
-        val keys = if (bicycle) listOf("bicycle", "vehicle", "access") else listOf("motorcycle", "motor_vehicle", "vehicle", "access")
-        for (key in keys) {
-            val value = tags[key]
-            if (value == "no" || (key != "vehicle" && key != "access" && value in setOf("dismount", "use_sidepath"))) return false
-            if (value in allowed) {
-                if (!bicycle || key == "bicycle") return true
-                break
+        if (bicycle) {
+            val value = tags["bicycle"]
+            if (value in setOf("no", "dismount", "use_sidepath")) return false
+            if (value in allowed) return true
+            for (key in listOf("vehicle", "access")) {
+                if (tags[key] == "no") return false
+                if (tags[key] in allowed) break
             }
+            return tags["highway"] !in excludedBicycle
         }
-        return tags["highway"] !in if (bicycle) excludedBicycle else excluded
+        for (key in listOf("motorcycle", "motor_vehicle", "vehicle", "access")) {
+            val value = tags[key]
+            if (value in setOf("no", "dismount", "use_sidepath")) return false
+            if (value in allowed) return true
+        }
+        return tags["highway"] !in excluded
     }
 
     fun level(tags: Map<String, String?>): Int {
@@ -64,6 +70,8 @@ internal object JunctionGeometry {
 
     fun compile(route: Route, context: Context, bicycle: Boolean): Scene {
         require(route.points.size in 2..10000 && route.decisions.size in 1..2000 && route.base in 0..1000000)
+        require(route.base + route.points.lastIndex <= 1000000 && route.destination in -1..1000000)
+        require(route.destination == -1 || route.destination >= route.base + route.points.lastIndex)
         require(route.decisions.zipWithNext().all { it.first.index <= it.second.index })
         require(route.decisions.all { it.index - route.base in route.points.indices })
         val scene = geometry(route, context, bicycle)

@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 180
     defaults:
       run:
@@ -39,6 +39,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Select the reviewed Xcode toolchain
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
       - name: Record runner and toolchain
         run: |
           xcodebuild -version
@@ -69,5 +71,45 @@ jobs:
         with:
           name: junction-ios-${{ inputs.destination || 'device' }}-${{ github.run_number }}
           path: junction-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+  bridge:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select the reviewed Xcode toolchain
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+      - name: Check source ages and request lifecycle
+        shell: bash
+        run: |
+          swiftc -parse-as-library \
+            integrations/garmin/ios/bridge/Sources/Scene.swift \
+            integrations/garmin/ios/bridge/Sources/DeliveryGate.swift \
+            integrations/garmin/ios/bridge/Tests/ProtocolTests.swift \
+            -o "$RUNNER_TEMP/junction-protocol-tests"
+          "$RUNNER_TEMP/junction-protocol-tests"
+      - name: Install project generator
+        run: brew install xcodegen
+      - name: Generate and compile the separate Garmin bridge
+        shell: bash
+        run: |
+          mkdir -p junction-bridge-evidence
+          xcodegen generate --spec integrations/garmin/ios/bridge/project.yml
+          set -o pipefail
+          xcodebuild \
+            -project integrations/garmin/ios/bridge/JunctionBridge.xcodeproj \
+            -scheme JunctionBridge -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/bridge-derived" \
+            CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build \
+            2>&1 | tee junction-bridge-evidence/build.log
+      - name: Preserve bridge compiler evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junction-ios-bridge-check-${{ github.run_number }}
+          path: junction-bridge-evidence/
           if-no-files-found: warn
           retention-days: 7

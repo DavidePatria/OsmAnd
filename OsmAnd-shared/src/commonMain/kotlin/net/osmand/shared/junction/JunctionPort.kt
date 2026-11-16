@@ -8,8 +8,12 @@ import net.osmand.shared.routing.RouteDataObject
 import net.osmand.shared.util.KMapUtils
 import kotlin.math.*
 import kotlin.time.TimeSource
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 
 /** JSON boundary keeps Apple callers independent of Kotlin collection/number bridging. */
+@OptIn(ExperimentalObjCName::class)
+@ObjCName("OASJunctionPort", exact = true)
 class JunctionPort {
     fun layer(road: RouteDataObject): Int = try {
         JunctionGeometry.level(listOf("layer", "bridge", "tunnel").associateWith { road.getValue(it) })
@@ -37,7 +41,9 @@ class JunctionPort {
         val route = JunctionGeometry.Route(points, decisions, input.getValue("indexBase").jsonPrimitive.int,
             input.getValue("destinationIndex").jsonPrimitive.int)
         val center = points[decisions.first().index - route.base]
-        encode(JunctionGeometry.compile(route, readRoads(mapFiles, center), input["profile"]?.jsonPrimitive?.content == "bicycle"), decisions.first())
+        val context = if (input["contextTruncated"]?.jsonPrimitive?.booleanOrNull == true)
+            JunctionGeometry.Context(emptyList(), false, true) else readRoads(mapFiles, center)
+        encode(JunctionGeometry.compile(route, context, input["profile"]?.jsonPrimitive?.content == "bicycle"), decisions.first())
     } catch (_: Exception) {
         buildJsonObject {
             put("geometryMode", "unavailable"); put("reason", "invalid or unavailable native geometry")

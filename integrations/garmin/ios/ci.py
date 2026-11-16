@@ -51,6 +51,12 @@ def bootstrap(workspace):
 
 
 def prepare(workspace):
+    cmake = workspace / "build/CMakeLists.txt"
+    original = cmake.read_text()
+    broken = 'if ((OR CMAKE_COMPILER_FAMILY STREQUAL "clang") AND'
+    if original.count(broken) != 1:
+        raise ValueError("Pinned upstream CMake repair no longer matches; review the source lock")
+    cmake.write_text(original.replace(broken, 'if ((CMAKE_COMPILER_FAMILY STREQUAL "clang") AND', 1))
     ios = workspace / "ios"
     project = ios / "OsmAnd.xcodeproj/project.pbxproj"
     source = project.read_text()
@@ -87,11 +93,13 @@ def build(workspace, destination):
     logs.mkdir(exist_ok=True)
     env = dict(os.environ, LANG="en_US.UTF-8", DOWNLOAD_PREBUILT_QT_FILES="true")
     env["JAVA_HOME"] = output(["/usr/libexec/java_home", "-v", "17"])
-    run(["bash", workspace / "ios/prepare.sh"], cwd=workspace,
+    run(["bash", "-e", workspace / "ios/prepare.sh"], cwd=workspace,
         env=env, log=logs / "prepare.log")
     sdk = "iphoneos" if destination == "device" else "iphonesimulator"
     target = "generic/platform=iOS" if destination == "device" else "generic/platform=iOS Simulator"
     core = workspace / "baked/fat-ios-clang.xcode"
+    if not (core / "OsmAnd_projects.xcodeproj").is_dir():
+        raise ValueError("Native project generation did not produce OsmAnd_projects.xcodeproj; inspect prepare.log")
     for name in ("ZERO_CHECK", "OsmAndCore_static_standalone"):
         run(["xcodebuild", "-project", "OsmAnd_projects.xcodeproj", "-target", name,
              "-sdk", sdk, "-configuration", "Release", "-jobs", "2",
@@ -130,7 +138,7 @@ def build(workspace, destination):
             payload = staging / "Payload"
             payload.mkdir(parents=True)
             shutil.copytree(app, payload / app.name, symlinks=True)
-            run(["ditto", "-c", "-k", "--sequesterRsrc", payload, package])
+            run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", payload, package])
             shutil.rmtree(staging)
         else:
             with tarfile.open(package, "w:gz") as archive:

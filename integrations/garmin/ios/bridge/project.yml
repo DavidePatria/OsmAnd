@@ -1,0 +1,48 @@
+name: JunctionBridge
+options:
+  deploymentTarget:
+    iOS: '15.0'
+packages:
+  ConnectIQ:
+    url: https://github.com/garmin/connectiq-companion-app-sdk-ios
+    revision: f0d29ff691d700a132d86205ed9bb091e336c2f7
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ''
+    TARGETED_DEVICE_FAMILY: '1,2'
+targets:
+  JunctionBridge:
+    type: application
+    platform: iOS
+    productName: Junction Bridge
+    sources:
+      - Sources
+    dependencies:
+      - package: ConnectIQ
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.osmand.junction.bridge.ios
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/JunctionBridge-Bridging-Header.h
+        OTHER_LDFLAGS: '$(inherited) -ObjC'
+        MARKETING_VERSION: 0.3.0
+        CURRENT_PROJECT_VERSION: 1
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: Junction Bridge
+        CFBundleURLTypes:
+          - CFBundleURLName: net.osmand.junction.bridge
+            CFBundleURLSchemes: [junctionbridge]
+        LSApplicationQueriesSchemes: [gcm-ciq, osmandjunction]
+        NSBluetoothAlwaysUsageDescription: Send OsmAnd junction diagrams to your selected Garmin watch.
+        NSBluetoothPeripheralUsageDescription: Send OsmAnd junction diagrams to your selected Garmin watch.
+        UIBackgroundModes: [bluetooth-central]
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+schemes:
+  JunctionBridge:
+    build:
+      targets:
+        JunctionBridge: all

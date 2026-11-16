@@ -24,6 +24,7 @@ static const uint16_t JunctionPortNumber = 38765;
     dispatch_source_t _listener;
     dispatch_semaphore_t _clients;
     NSMutableDictionary<NSNumber *, NSDictionary *> *_cache;
+    NSMutableDictionary<NSNumber *, NSNumber *> *_cacheTimes;
     NSMutableSet<NSNumber *> *_building;
     OARouteCalculationResult *_observedRoute;
     NSString *_profile;
@@ -55,6 +56,7 @@ static const uint16_t JunctionPortNumber = 38765;
         _networkQueue = dispatch_queue_create("net.osmand.junction.network", DISPATCH_QUEUE_CONCURRENT);
         _clients = dispatch_semaphore_create(4);
         _cache = [NSMutableDictionary new];
+        _cacheTimes = [NSMutableDictionary new];
         _building = [NSMutableSet new];
         _clocks = [NSMutableDictionary new];
         _session = NSUUID.UUID.UUIDString;
@@ -79,12 +81,15 @@ static const uint16_t JunctionPortNumber = 38765;
 {
     _revision++;
     [_cache removeAllObjects];
+    [_cacheTimes removeAllObjects];
     [_building removeAllObjects];
 }
 
 - (void)lifecycleChanged:(NSNotification *)notification { [self invalidate]; }
 - (void)newRouteIsCalculated:(BOOL)newRoute { _arrived = NO; [self invalidate]; }
-- (void)routeWasUpdated { [self invalidate]; }
+// This callback fires for ordinary point progress too. Capture observes the native
+// decision index; progress alone must not discard the current/next fixed diagrams.
+- (void)routeWasUpdated { }
 - (void)routeWasCancelled { _arrived = NO; [self invalidate]; }
 - (void)routeWasFinished { _arrived = YES; [self invalidate]; }
 
@@ -251,7 +256,8 @@ static const uint16_t JunctionPortNumber = 38765;
     {
         _currentIndex = index;
         _generation++;
-        for (NSNumber *key in _cache.allKeys) if (key.integerValue != index && key.integerValue != index + 1) [_cache removeObjectForKey:key];
+        for (NSNumber *key in _cache.allKeys) if (key.integerValue != index && key.integerValue != index + 1)
+        { [_cache removeObjectForKey:key]; [_cacheTimes removeObjectForKey:key]; }
     }
     if (![state isEqual:@"active"]) [self invalidate];
     CLLocation *fix = [helper getLastFixedLocation];
@@ -293,7 +299,10 @@ static const uint16_t JunctionPortNumber = 38765;
 
 - (void)requestBuild:(NSInteger)index route:(OARouteCalculationResult *)route profile:(NSString *)profile
 {
-    if (_cache[@(index)] || _workerBusy) return;
+    NSDictionary *cached = _cache[@(index)];
+    if (cached && ([cached[@"geometryMode"] isEqual:@"map_context"] ||
+        NSProcessInfo.processInfo.systemUptime - [_cacheTimes[@(index)] doubleValue] < 5)) return;
+    if (_workerBusy) return;
     NSArray<CLLocation *> *locations = [route getImmutableAllLocations];
     NSArray<OARouteDirectionInfo *> *directions = [route getImmutableAllDirections];
     if (index < 0 || index >= directions.count || locations.count < 2) return;
@@ -314,7 +323,7 @@ static const uint16_t JunctionPortNumber = 38765;
     for (NSInteger i = first; i <= last; i++)
     {
         CLLocationCoordinate2D coordinate = locations[i].coordinate;
-        int layer = segments.count > i - first ? [compiler layerRoad:[segments[i - first] getObject]] : 0;
+        int layer = segments.count > i - first ? [compiler layerRoad:[segments[i - first] getObject]] : -99;
         [points addObject:@[@(coordinate.latitude), @(coordinate.longitude), NSNull.null, @(layer)]];
     }
     for (NSInteger i = index; i < directions.count; i++)
@@ -336,6 +345,7 @@ static const uint16_t JunctionPortNumber = 38765;
     dispatch_async(_geometryQueue, ^{
         // Streams are owned only by this worker. No router or resource-manager reader is shared.
         NSMutableArray<NSString *> *files = [NSMutableArray new];
+        BOOL scanTruncated = NO;
         NSArray<NSString *> *roots = @[
             NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject,
             NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject];
@@ -346,7 +356,7 @@ static const uint16_t JunctionPortNumber = 38765;
                 includingPropertiesForKeys:@[NSURLIsRegularFileKey, NSURLIsSymbolicLinkKey] options:NSDirectoryEnumerationSkipsHiddenFiles errorHandler:nil];
             for (NSURL *url in enumerator)
             {
-                if (++visited > 10000) { while (files.count <= 32) [files addObject:@""]; break; }
+                if (++visited > 10000) { scanTruncated = YES; break; }
                 if (![url.pathExtension.lowercaseString isEqual:@"obf"]) continue;
                 NSNumber *regular = nil, *symlink = nil;
                 [url getResourceValue:&regular forKey:NSURLIsRegularFileKey error:nil];
@@ -354,15 +364,26 @@ static const uint16_t JunctionPortNumber = 38765;
                 if (regular.boolValue && !symlink.boolValue) [files addObject:url.path];
                 if (files.count > 32) break;
             }
-            if (files.count > 32) break;
+            if (files.count > 32 || scanTruncated) break;
         }
-        NSString *result = [compiler compileInputJson:json mapFiles:files];
+        NSString *workerInput = json;
+        if (scanTruncated)
+        {
+            NSMutableDictionary *limited = [input mutableCopy];
+            limited[@"contextTruncated"] = @YES;
+            workerInput = [[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:limited options:0 error:nil] encoding:NSUTF8StringEncoding];
+        }
+        NSString *result = [compiler compileInputJson:workerInput mapFiles:files];
         NSDictionary *geometry = [NSJSONSerialization JSONObjectWithData:[result dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
         dispatch_async(dispatch_get_main_queue(), ^{
             self->_workerBusy = NO;
             if (revision != self->_revision || route != self->_observedRoute || ![profile isEqual:self->_profile]) return;
             [self->_building removeObject:@(index)];
-            if (geometry && (index == self->_currentIndex || index == self->_currentIndex + 1)) self->_cache[@(index)] = geometry;
+            if (geometry && (index == self->_currentIndex || index == self->_currentIndex + 1))
+            {
+                self->_cache[@(index)] = geometry;
+                self->_cacheTimes[@(index)] = @(NSProcessInfo.processInfo.systemUptime);
+            }
         });
     });
 }
