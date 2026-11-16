@@ -1,0 +1,6 @@
+"junction_title" = "Junction Garmin";
+"junction_source_explanation" = "Share native navigation with the separate Junction Bridge app on this iPhone. Open these settings again after enabling to connect the bridge.";
+"junction_enable" = "Enable sharing";
+"junction_disable" = "Disable sharing";
+"junction_connect_bridge" = "Connect Junction Bridge";
+"junction_source_unavailable" = "Sharing could not start. Unlock the iPhone and try again.";

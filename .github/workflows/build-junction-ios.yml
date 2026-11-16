@@ -1,0 +1,73 @@
+name: Build Junction iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: Build target (device output requires separate Apple signing)
+        type: choice
+        default: device
+        options: [device, simulator]
+  push:
+    branches: [codex/ios-garmin]
+    paths:
+      - '.github/workflows/build-junction-ios.yml'
+      - 'integrations/garmin/ios/**'
+      - 'OsmAnd-shared/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: junction-ios-${{ github.ref }}-${{ inputs.destination || 'device' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2048m -Dorg.gradle.workers.max=2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Record runner and toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          df -h "$GITHUB_WORKSPACE"
+          java -version
+      - name: Install build tools
+        run: brew install cmake ninja wget xcodegen
+      - name: Restore Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: junction-ios-gradle-${{ runner.arch }}-${{ hashFiles('android/OsmAnd-shared/build.gradle.kts', 'android/versions.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Checkout pinned native sources
+        run: python3 android/integrations/garmin/ios/ci.py bootstrap --workspace "$GITHUB_WORKSPACE"
+      - name: Apply Junction development adaptation
+        run: python3 android/integrations/garmin/ios/ci.py prepare --workspace "$GITHUB_WORKSPACE"
+      - name: Compile native OsmAnd and Garmin bridge
+        env:
+          DESTINATION: ${{ inputs.destination || 'device' }}
+        run: python3 android/integrations/garmin/ios/ci.py build --workspace "$GITHUB_WORKSPACE" --destination "$DESTINATION"
+      - name: Preserve build evidence and actual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junction-ios-${{ inputs.destination || 'device' }}-${{ github.run_number }}
+          path: junction-artifacts/
+          if-no-files-found: warn
+          retention-days: 7

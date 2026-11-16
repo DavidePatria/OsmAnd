@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "sources": {
+    "ios": {"repository": "osmandapp/OsmAnd-iOS", "commit": "b155b390dfe3958994922924f4045d591275925e"},
+    "core": {"repository": "osmandapp/OsmAnd-core", "commit": "8e8c6d443ae3e3e8713bcd87acd71d9204ca5d63"},
+    "core-legacy": {"repository": "osmandapp/OsmAnd-core-legacy", "commit": "31f6b7fd5e2779528aca4391baaa78f932744ee9"},
+    "resources": {"repository": "osmandapp/OsmAnd-resources", "commit": "d0ed5113a2a7b9eaebffa4d4f293e42f9819fba3"},
+    "build": {"repository": "osmandapp/OsmAnd-build", "commit": "54356f2a6d1d07fe67510a25ec7912c0c63b277d"}
+  },
+  "bundleIdentifiers": {
+    "osmand": "net.osmand.junction.ios",
+    "bridge": "net.osmand.junction.bridge.ios"
+  },
+  "note": "Android/shared sources are the workflow checkout. Upstream binary downloads are mutable; CI records their hashes and does not call this a fully reproducible source build."
+}
