@@ -90,6 +90,20 @@ appended below without replacing this failed-attempt record.
   cannot clear a newer source read. Source authentication also has a bounded
   overall read interval. These changes still require the native compiler gate.
 
+### Actual Garmin iOS bridge compilation (2026-11-16)
+
+[Run 43853166772, bridge job 133250653269](https://github.com/DavidePatria/OsmAnd/actions/runs/43853166772/job/133250653269)
+passed: Xcode 26.3, Intel macOS 15, Release ARM64 `iphoneos`, actual pinned Garmin
+Swift package, unsigned build. All source-age/request tests passed on this Mac
+too. Compiler evidence is retained under private `ios-ci/run-43853166772-bridge/`.
+SourceConnection, SwiftUI, Keychain, Network and Objective-C SDK boundaries compile.
+No installation, signing, BLE delivery or watch drawing was executed.
+
+The main OsmAnd job was still queued without an Apple Silicon runner. The next
+revision moves it to the working Intel macOS pool; Xcode cross-compiles iPhone
+ARM64 there. The parallel bridge job now also packages its actual unsigned app
+and hash, so its successful output is available independently of native OsmAnd.
+
 Reviewed/continued on 2026-11-05 from `/tmp/opencode/handoff-junction-companion.md`. This record distinguishes observed behavior, inference and unexecuted checks. The detailed task acceptance criteria remain in [todo.md](todo.md).
 
 ## Historical initial verdict

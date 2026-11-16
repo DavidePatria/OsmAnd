@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 180
     defaults:
       run:
@@ -105,6 +105,12 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/bridge-derived" \
             CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build \
             2>&1 | tee junction-bridge-evidence/build.log
+          mkdir -p "$RUNNER_TEMP/bridge-package/Payload"
+          cp -R "$RUNNER_TEMP/bridge-derived/Build/Products/Release-iphoneos/Junction Bridge.app" "$RUNNER_TEMP/bridge-package/Payload/"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/bridge-package/Payload" junction-bridge-evidence/Junction-Bridge-unsigned.ipa
+          shasum -a 256 junction-bridge-evidence/Junction-Bridge-unsigned.ipa > junction-bridge-evidence/artifact.sha256
+          printf '%s\n' 'Unsigned device app: Apple signing and provisioning are required before installation.' > junction-bridge-evidence/SIGNING.txt
       - name: Preserve bridge compiler evidence
         if: always()
         uses: actions/upload-artifact@v4

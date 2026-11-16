@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   sign:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 20
     env:
       IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}

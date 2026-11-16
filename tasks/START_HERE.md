@@ -22,6 +22,11 @@ this does not verify native iOS layers or live progress. Native macOS jobs remai
 queued without runners; the separate bridge compiler check now uses the Intel
 pool while native OsmAnd retains Apple Silicon. No signed app exists yet.
 
+Subsequent checkpoint: the Intel bridge job in run 43853166772 succeeded,
+including the real Garmin SDK and iPhone ARM64 target. The source and UI compile;
+this is not phone/watch runtime proof. Main OsmAnd still had no Apple Silicon
+runner, so the next revision also uses `macos-15-intel` for the native build.
+
 ## Latest — Forerunner 265 transfer (2026-11-11)
 
 At the user's request, the prepared `fr265` standalone app and activity data

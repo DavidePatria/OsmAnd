@@ -117,6 +117,10 @@ The independent `Check Junction iOS protocol on Linux` workflow runs the portabl
 Swift checks without waiting for a Mac. Its first run passed 19 assertions. The
 shared compiler also reproduced the preserved native Piazza Android baseline
 offline, including all 36 paths; private coordinates and map files stay outside Git.
+The actual Garmin bridge has also compiled with Xcode 26.3 for ARM64 iPhones on
+an Intel macOS 15 runner (run 43853166772). The main native build now uses that
+runner pool too, after Apple Silicon jobs remained queued. The parallel bridge
+artifact is an unsigned app, independently packaged after successful compilation.
 
 Current measured outcomes and failed attempts are recorded in
 `tasks/verification.md`; remaining work is in `tasks/todo.md`. Full native app
