@@ -47,6 +47,7 @@ final class SourceConnection {
                 switch state {
                 case .ready:
                     connection.send(content: Data("GET \(token)\n".utf8), completion: .contentProcessed { error in
+                        guard self.connection === connection else { return }
                         if let error { self.finish(.failure(error)); return }
                         self.receive(connection)
                     })

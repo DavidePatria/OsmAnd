@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "toolchain": {"runner": "macos-15", "xcode": "26.3", "java": 17},
+  "toolchain": {"runner": "macos-15", "bridgeRunner": "macos-15-intel", "xcode": "26.3", "java": 17},
   "sources": {
     "ios": {"repository": "osmandapp/OsmAnd-iOS", "commit": "b155b390dfe3958994922924f4045d591275925e"},
     "core": {"repository": "osmandapp/OsmAnd-core", "commit": "8e8c6d443ae3e3e8713bcd87acd71d9204ca5d63"},

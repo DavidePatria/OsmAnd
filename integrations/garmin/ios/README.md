@@ -113,6 +113,10 @@ The shared JVM suite reuses the existing recorded native fork/double-turn
 fixtures and checks filtering/layer facts. The Swift protocol executable tests
 freshness, invalid scalar values, expiry, duplicates, epochs and stale callbacks.
 These are unit regressions, not live native route or Garmin transport tests.
+The independent `Check Junction iOS protocol on Linux` workflow runs the portable
+Swift checks without waiting for a Mac. Its first run passed 19 assertions. The
+shared compiler also reproduced the preserved native Piazza Android baseline
+offline, including all 36 paths; private coordinates and map files stay outside Git.
 
 Current measured outcomes and failed attempts are recorded in
 `tasks/verification.md`; remaining work is in `tasks/todo.md`. Full native app

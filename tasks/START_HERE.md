@@ -14,6 +14,14 @@ native compilation, signing and live/device checks remain open. No Apple signing
 credentials or paid membership are available. Read `integrations/garmin/ios/README.md`
 and the iOS checkpoint in `tasks/verification.md` before continuing.
 
+The independent Linux Swift check now passes 19 assertions (run 43852395564).
+An offline check of the preserved native Piazza capture through the shared port
+reproduces the Android baseline's exact 36 paths, anchors, 1354 dm radius and
+destination field. The saved route has only its historical 2D edge baseline;
+this does not verify native iOS layers or live progress. Native macOS jobs remain
+queued without runners; the separate bridge compiler check now uses the Intel
+pool while native OsmAnd retains Apple Silicon. No signed app exists yet.
+
 ## Latest — Forerunner 265 transfer (2026-11-11)
 
 At the user's request, the prepared `fr265` standalone app and activity data

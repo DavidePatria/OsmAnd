@@ -63,6 +63,33 @@ Source revisions are pinned in the iOS lock; upstream prebuilt downloads remain
 mutable, with hashes captured during build. Further hosted outcomes must be
 appended below without replacing this failed-attempt record.
 
+### Subsequent portable checks and macOS queue (2026-11-16)
+
+- [Linux Swift run 43852395564](https://github.com/DavidePatria/OsmAnd/actions/runs/43852395564)
+  passed all 19 source-age/request-lifecycle assertions with Swift 6.4.2.
+  Log: private `ios-ci/run-43852395564.log`. This compiles the actual portable
+  bridge validation code; UIKit, Network, Security and Garmin SDK remain outside
+  this Linux check.
+- The shared port read the existing Piazza map and preserved native route
+  capture offline. Native entry/end offsets are 18/46. Its `map_context` scene
+  exactly equals the saved Android baseline in mode, 1354 dm radius, anchors,
+  all 36 paths and destination field; the selected path has 11 points. Source,
+  map, expected/input/output hashes and comparison are in private
+  `ios-ci/piazza-port-check.json`. The historical capture has no edge-level
+  metadata; its route edges retain the existing 2D baseline. Context levels come
+  from the shared OBF reader. No native iOS progress, live SDK delivery, rendering
+  pixels or physical behavior is established. The temporary classpath script's
+  first attempt had a syntax error; corrected resolution and the replay passed.
+- [macOS 15 run 43851410265](https://github.com/DavidePatria/OsmAnd/actions/runs/43851410265)
+  also remained queued without assigned runners; there are no compiler results
+  to infer from that state. The next revision sends the separate bridge check
+  to `macos-15-intel`, retaining the native build on `macos-15`; Xcode 26.3 is
+  documented on both images. This is a scheduling alternative, not a fix for a
+  measured compiler error.
+- Reviewed/corrected source callback identity so an old TCP send completion
+  cannot clear a newer source read. Source authentication also has a bounded
+  overall read interval. These changes still require the native compiler gate.
+
 Reviewed/continued on 2026-11-05 from `/tmp/opencode/handoff-junction-companion.md`. This record distinguishes observed behavior, inference and unexecuted checks. The detailed task acceptance criteria remain in [todo.md](todo.md).
 
 ## Historical initial verdict

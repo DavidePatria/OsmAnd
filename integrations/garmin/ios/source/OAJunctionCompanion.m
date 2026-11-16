@@ -169,7 +169,8 @@ static const uint16_t JunctionPortNumber = 38765;
     setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     char bytes[97];
     NSUInteger count = 0;
-    while (count < sizeof(bytes))
+    NSTimeInterval opened = NSProcessInfo.processInfo.systemUptime;
+    while (count < sizeof(bytes) && NSProcessInfo.processInfo.systemUptime - opened < 1)
     {
         ssize_t n = recv(fd, bytes + count, sizeof(bytes) - count, 0);
         if (n <= 0) break;

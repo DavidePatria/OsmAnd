@@ -6,7 +6,10 @@
   Garmin SDK bridge; use native route state and the existing watch protocol.
 - [x] Pin native source revisions and preserve failed hosted-build evidence.
 - [x] Pass four shared JVM regressions using recorded native geometry and access/layer facts.
-- [ ] Pass Swift protocol tests and compile the actual Garmin iOS SDK integration.
+- [x] Pass portable Swift protocol tests: 19 assertions on Linux (run 43852395564).
+- [x] Reproduce the preserved native Piazza geometry offline: exact 36-path
+  Android baseline equality. This is not live or native iOS proof.
+- [ ] Compile the actual Garmin iOS SDK integration on macOS.
 - [ ] Finish native OsmAnd iPhone compilation on Actions and inspect actual artifacts.
 - [ ] Execute the prepared signing workflow with valid Apple-issued certificate,
   private key and two device profiles. Currently blocked on those external assets;
