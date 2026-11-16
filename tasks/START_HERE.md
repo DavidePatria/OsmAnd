@@ -1,5 +1,19 @@
 # Start here: implement the Garmin junction companion
 
+## Latest — iOS adaptation and hosted build in progress (2026-11-16)
+
+The user requested native iOS OsmAnd adaptation, complete Garmin integration and
+a GitHub Actions build. Work is isolated on `codex/ios-garmin` under ignored
+`build/garmin-review/ios-ci/worktree`; the existing Android working tree is intact.
+The first hosted run failed in pinned upstream CMake project generation before
+application compilation. Its malformed condition is repaired in the runner copy.
+A second macOS 26 run remained queued without an assigned runner; the next
+attempt uses macOS 15/Xcode 26.3. Four shared JVM regressions pass. The separate
+iOS source exporter, Garmin bridge and manual signing path are implemented but
+native compilation, signing and live/device checks remain open. No Apple signing
+credentials or paid membership are available. Read `integrations/garmin/ios/README.md`
+and the iOS checkpoint in `tasks/verification.md` before continuing.
+
 ## Latest — Forerunner 265 transfer (2026-11-11)
 
 At the user's request, the prepared `fr265` standalone app and activity data

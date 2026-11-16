@@ -11,6 +11,58 @@ The field's earlier separate simulator startup timed out; its unit suite passed.
 
 # Verification record — junction companion
 
+## iOS implementation checkpoint (2026-11-16)
+
+User scope: native iOS OsmAnd adaptation, complete Garmin integration and GitHub
+Actions builds; requested signed iPhone output, with no Apple Developer Program
+membership. GitHub CLI authentication now works. The dedicated
+`codex/ios-garmin` branch was pushed to the existing `DavidePatria/OsmAnd` remote;
+no remote or public repository was created. Existing dirty Android work is kept
+outside the isolated worktree.
+
+Observed evidence:
+
+- Initial commit `224774290f`: [run 43847726686](https://github.com/DavidePatria/OsmAnd/actions/runs/43847726686)
+  failed before app compilation. Pinned OsmAnd-build CMake line 181 contains
+  `if ((OR CMAKE_COMPILER_FAMILY ...`; native project generation failed. Running
+  upstream prepare through plain `bash` masked that failure. The adaptation now
+  removes that exact stray token, invokes `bash -e`, and checks the generated
+  native project explicitly. Original logs/artifacts are retained privately in
+  `build/garmin-review/ios-ci/run-43847726686/`.
+- Commit `795d8ea18d`: [run 43850668035](https://github.com/DavidePatria/OsmAnd/actions/runs/43850668035)
+  remained queued with no macOS 26 runner assigned. This does not establish a
+  compiler failure. The subsequent attempt selects macOS 15/Xcode 26.3, whose
+  installed toolchain was checked against the runner image documentation.
+- Source adaptation smoke `overlay-smoke-03` applied to the exact cached pinned
+  iOS source and checked the native CMake repair, exporter registration and
+  post-initialization startup injection. This checks source integration points,
+  not Objective-C compilation.
+- Focused `:OsmAnd-shared:jvmTest --tests net.osmand.shared.junction.JunctionRecordedTest`
+  passed four tests, zero failures/errors; final rerun completed in 1m27s.
+  It reuses existing recorded native fork/double-turn fixtures and checks motor
+  filtering/layer facts. The earlier offline attempt failed because the Ktor
+  mock dependency was uncached; online resolution and the subsequent offline
+  rerun succeeded. Logs remain under `build/garmin-review/ios-ci/`.
+- Python/JSON/YAML syntax and diff whitespace checks passed. No physical iPhone
+  installation, Garmin BLE delivery, watch drawing or native iOS navigation has
+  been performed.
+
+Implementation decisions: authenticated loopback IPC keeps the phone bridge
+separate without relying on App Groups; Keychain credentials and opt-in controls
+protect source sharing. This cannot wake suspended OsmAnd. Shared geometry uses
+bounded independently owned readers of existing OBF files, and preserves native
+roundabout end offsets and road levels. Garmin receives documented dictionary
+messages; compact Android ByteArray serialization is not assumed portable.
+Full-context dictionary throughput and watch heap use remain open.
+
+The manual signing workflow requires existing Apple-issued `.p12` credentials
+and two matching device profiles. It has not executed and no signed/installable
+IPA is claimed. Free Personal Team provisioning expires after seven days; see
+[Apple's account overview](https://developer.apple.com/help/account/basics/about-your-developer-account).
+Source revisions are pinned in the iOS lock; upstream prebuilt downloads remain
+mutable, with hashes captured during build. Further hosted outcomes must be
+appended below without replacing this failed-attempt record.
+
 Reviewed/continued on 2026-11-05 from `/tmp/opencode/handoff-junction-companion.md`. This record distinguishes observed behavior, inference and unexecuted checks. The detailed task acceptance criteria remain in [todo.md](todo.md).
 
 ## Historical initial verdict

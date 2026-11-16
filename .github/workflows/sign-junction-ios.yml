@@ -1,0 +1,60 @@
+name: Sign Junction iPhone apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Build Junction iOS device run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sign:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_OSMAND_PROFILE_BASE64: ${{ secrets.IOS_OSMAND_PROFILE_BASE64 }}
+      IOS_BRIDGE_PROFILE_BASE64: ${{ secrets.IOS_BRIDGE_PROFILE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require existing Apple signing credentials
+        run: python3 integrations/garmin/ios/sign.py --check-credentials
+      - name: Download the successful device build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          run_id = os.environ['BUILD_RUN_ID']
+          if not run_id.isascii() or not run_id.isdecimal(): raise SystemExit('Invalid run ID')
+          repo = os.environ['GITHUB_REPOSITORY']
+          run = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/actions/runs/{run_id}']))
+          if run['name'] != 'Build Junction iOS' or run['conclusion'] != 'success' or run['head_branch'] != 'codex/ios-garmin':
+              raise SystemExit('Select a successful Junction build from codex/ios-garmin')
+          artifact = 'junction-ios-device-' + str(run['run_number'])
+          subprocess.run(['gh', 'run', 'download', run_id, '--repo', repo, '--name', artifact, '--dir', 'unsigned'], check=True)
+          manifest = json.loads(pathlib.Path('unsigned/build.json').read_text())
+          if manifest['platform'] != 'device' or manifest['signing'] != 'unsigned': raise SystemExit('Not an unsigned device build')
+          import hashlib
+          for name, digest in manifest['artifacts'].items():
+              path = pathlib.Path('unsigned') / name
+              if path.name != name or hashlib.sha256(path.read_bytes()).hexdigest() != digest: raise SystemExit('Artifact hash mismatch')
+          pathlib.Path('unsigned/source-run.json').write_text(json.dumps({'run': int(run_id), 'commit': run['head_sha']}))
+          PY
+      - name: Sign both applications and verify signatures
+        run: python3 integrations/garmin/ios/sign.py --source unsigned --output signed
+      - name: Preserve build provenance
+        run: cp unsigned/build.json unsigned/source-run.json signed/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: junction-iphone-signed-${{ github.run_number }}
+          path: signed/
+          retention-days: 3
+          if-no-files-found: error

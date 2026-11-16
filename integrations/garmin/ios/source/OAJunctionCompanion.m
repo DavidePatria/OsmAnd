@@ -277,8 +277,8 @@ static const uint16_t JunctionPortNumber = 38765;
         int target = inside ? direction.routeEndPointOffset : direction.routePointOffset;
         if (target >= 0 && target < [route getImmutableAllLocations].count)
             distance = MAX(0, [route getDistanceToPoint:projection locationIndex:target]);
-        if (!geometry) [self requestBuild:index route:route profile:profile];
-        else if (index + 1 < directions.count) [self requestBuild:index + 1 route:route profile:profile];
+        [self requestBuild:index route:route profile:profile];
+        if (geometry && index + 1 < directions.count) [self requestBuild:index + 1 route:route profile:profile];
     }
     scene[@"version"] = @1;
     scene[@"session"] = _session;

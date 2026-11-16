@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 180
     defaults:
       run:
@@ -40,7 +40,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Select the reviewed Xcode toolchain
-        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
       - name: Record runner and toolchain
         run: |
           xcodebuild -version
@@ -75,12 +75,12 @@ jobs:
           retention-days: 7
 
   bridge:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Select the reviewed Xcode toolchain
-        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
       - name: Check source ages and request lifecycle
         shell: bash
         run: |

@@ -81,6 +81,12 @@ def prepare(workspace):
                                '<plist version="1.0"><dict/></plist>\n')
     resource = ios / "Scripts/download-shipped-resources.sh"
     resource.write_text(resource.read_text().replace("http://builder.osmand.net/", "https://builder.osmand.net/"))
+    script = ios / "prepare.sh"
+    text = script.read_text()
+    marker = '\t\tunzip -o -q -d "$SRCLOC" "$ANGLE_ZIP"'
+    if text.count(marker) != 1:
+        raise ValueError("Pinned ANGLE download changed; review input hashing")
+    script.write_text(text.replace(marker, '\t\tshasum -a 256 "$ANGLE_ZIP" > "$SRCLOC/angle-input.sha256"\n' + marker, 1))
     overlay = HERE / "source"
     if overlay.exists():
         run([sys.executable, HERE / "install.py", "--ios", ios])
@@ -95,6 +101,16 @@ def build(workspace, destination):
     env["JAVA_HOME"] = output(["/usr/libexec/java_home", "-v", "17"])
     run(["bash", "-e", workspace / "ios/prepare.sh"], cwd=workspace,
         env=env, log=logs / "prepare.log")
+    inputs = {}
+    for path in [workspace / "qt_download.zip", *(workspace / "ios/Resources/Shipped").glob("*")]:
+        if path.is_file():
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""): digest.update(block)
+            inputs[str(path.relative_to(workspace))] = digest.hexdigest()
+    angle_hash = workspace / "ios/angle-input.sha256"
+    if angle_hash.exists(): inputs["angle_download.zip"] = angle_hash.read_text().split()[0]
+    (logs / "download-inputs.json").write_text(json.dumps(inputs, indent=2) + "\n")
     sdk = "iphoneos" if destination == "device" else "iphonesimulator"
     target = "generic/platform=iOS" if destination == "device" else "generic/platform=iOS Simulator"
     core = workspace / "baked/fat-ios-clang.xcode"

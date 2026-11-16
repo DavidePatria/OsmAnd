@@ -1,5 +1,25 @@
 # Execution tasks: Garmin junction companion
 
+## iOS port — in progress (2026-11-16)
+
+- [x] Prepare isolated native iOS adaptation, shared geometry compiler and separate
+  Garmin SDK bridge; use native route state and the existing watch protocol.
+- [x] Pin native source revisions and preserve failed hosted-build evidence.
+- [x] Pass four shared JVM regressions using recorded native geometry and access/layer facts.
+- [ ] Pass Swift protocol tests and compile the actual Garmin iOS SDK integration.
+- [ ] Finish native OsmAnd iPhone compilation on Actions and inspect actual artifacts.
+- [ ] Execute the prepared signing workflow with valid Apple-issued certificate,
+  private key and two device profiles. Currently blocked on those external assets;
+  a free account still needs personal-device provisioning and profile renewal.
+- [ ] Verify installed apps with native motorcycle routing/realistic simulation,
+  actual Garmin delivery/drawing, maximum context, roundabout exit distance,
+  rerouting, arrival versus cancellation and physical haptics.
+- [ ] Verify background/locked-screen operation, source suspension, Bluetooth
+  disconnect/reconnect and first-permission startup on an actual iPhone/watch.
+
+Do not treat the Linux JVM suite, Swift protocol checks, unsigned compilation or
+SDK send completion as physical-device proof. Setup: `integrations/garmin/ios/README.md`.
+
 ## Latest: haptics and Piazza roundabout
 
 - [x] Implement one 300 ms pulse per newly displayed native junction; retain
